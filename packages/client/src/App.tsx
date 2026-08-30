@@ -233,10 +233,6 @@ export function App() {
       <header className="topbar">
         <h1>Clipper</h1>
         <span className="status">{status}</span>
-        <button onClick={() => void clearSeq()}>Clear</button>
-        <button className="primary" onClick={() => void exportVideo()}>
-          Export
-        </button>
       </header>
       <div className="panels">
         <SourcePanel
@@ -283,6 +279,8 @@ export function App() {
             }
           }}
           onOpen={openVideo}
+          onClear={() => void clearSeq()}
+          onExport={() => void exportVideo()}
         />
       </div>
       {overlay ? (

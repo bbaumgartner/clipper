@@ -15,6 +15,8 @@ export function VideoPanel(props: {
   onFocus: () => void;
   onSelect: (id: string, shift: boolean) => void;
   onOpen: (id: string) => void;
+  onClear: () => void;
+  onExport: () => void;
 }) {
   return (
     <section
@@ -24,6 +26,12 @@ export function VideoPanel(props: {
     >
       <div className="panel-head">
         <h2>Video</h2>
+        <button type="button" onClick={props.onClear}>
+          Clear
+        </button>
+        <button type="button" className="primary" onClick={props.onExport}>
+          Export
+        </button>
       </div>
       <div className="list">
         {props.sequenceIds.map((id, i) => {
