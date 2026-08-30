@@ -255,32 +255,36 @@ export function OverlayPlayer(props: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      const take = () => {
         e.preventDefault();
+        e.stopPropagation();
+      };
+      if (e.key === "Escape") {
+        take();
         onCloseRef.current(false, draftRef.current);
         return;
       }
       if (e.key === " ") {
-        e.preventDefault();
+        take();
         togglePlay();
         return;
       }
       if (e.key === "Enter" && e.metaKey && isCutRef.current) {
-        e.preventDefault();
+        take();
         onCloseRef.current(true, draftRef.current);
         return;
       }
       if (e.key === "Enter" && isCutRef.current) {
-        e.preventDefault();
+        take();
         cut();
         return;
       }
       if (e.key === "ArrowLeft") {
-        e.preventDefault();
+        take();
         seek(e.shiftKey ? -SEEK_JUMP_SEC : -SEEK_STEP_SEC);
       }
       if (e.key === "ArrowRight") {
-        e.preventDefault();
+        take();
         seek(e.shiftKey ? SEEK_JUMP_SEC : SEEK_STEP_SEC);
       }
     };

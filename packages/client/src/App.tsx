@@ -66,6 +66,7 @@ export function App() {
 
   async function onOverlayClose(commit: boolean, draft: Draft) {
     const current = overlay;
+    overlayRef.current = false;
     setOverlay(null);
     if (commit && current?.mode === "source" && draft.segments.length > 0) {
       await api.apply(current.sourceId, draft.segments);
@@ -207,6 +208,7 @@ export function App() {
         if (focus === "clips") moveClipSel(dir);
         if (focus === "video") moveVideoSel(dir, e.shiftKey);
       } else if (e.key === "Enter") {
+        if (e.metaKey || e.ctrlKey) return;
         e.preventDefault();
         if (focus === "source" && sourceSel) openSource(sourceSel);
         if (focus === "clips" && clipSel) openClip(clipSel);
