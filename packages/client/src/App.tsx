@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Clip, Source } from "@clipper/shared";
 import { api, subscribeEvents } from "./api";
 import { SourcePanel } from "./components/SourcePanel";
-import { ClipPanel } from "./components/ClipPanel";
+import { ClipPanel, visibleClips } from "./components/ClipPanel";
 import { VideoPanel } from "./components/VideoPanel";
 import { OverlayPlayer, type OverlayState } from "./components/OverlayPlayer";
 import type { Draft } from "./draft";
@@ -164,6 +164,26 @@ export function App() {
     setOverlay({ mode: "video", startIndex: i });
   }
 
+  function focusPanel(panel: Panel) {
+    setFocus(panel);
+    if (panel === "source") {
+      if (!sourceSel || !sources.some((s) => s.id === sourceSel)) {
+        const first = sources[0];
+        if (first) setSourceSel(first.id);
+      }
+    } else if (panel === "clips") {
+      if (!clipSel || !clips.some((c) => c.id === clipSel)) {
+        const first = visibleClips(clips, clipSort)[0];
+        if (first) setClipSel(first.id);
+      }
+    } else if (panel === "video") {
+      if (videoSel.every((id) => !sequenceIds.includes(id))) {
+        const first = sequenceIds[0];
+        if (first) setVideoSel([first]);
+      }
+    }
+  }
+
   function moveSourceSel(dir: number) {
     if (sources.length === 0) return;
     const i = Math.max(0, sources.findIndex((s) => s.id === sourceSel));
@@ -200,14 +220,14 @@ export function App() {
         return;
       }
       if (e.key === "1") {
-        setFocus("source");
         e.preventDefault();
+        focusPanel("source");
       } else if (e.key === "2") {
-        setFocus("clips");
         e.preventDefault();
+        focusPanel("clips");
       } else if (e.key === "3") {
-        setFocus("video");
         e.preventDefault();
+        focusPanel("video");
       } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         const dir = e.key === "ArrowUp" ? -1 : 1;
         if (e.altKey && focus === "video") {
@@ -253,7 +273,7 @@ export function App() {
           sources={sources}
           selectedId={sourceSel}
           sort={sourceSort}
-          onFocus={() => setFocus("source")}
+          onFocus={() => focusPanel("source")}
           onSelect={(id) => {
             setSourceSel(id);
             openSource(id);
@@ -267,7 +287,7 @@ export function App() {
           clips={clips}
           selectedId={clipSel}
           sort={clipSort}
-          onFocus={() => setFocus("clips")}
+          onFocus={() => focusPanel("clips")}
           onSelect={(id) => {
             setClipSel(id);
             openClip(id);
@@ -281,7 +301,7 @@ export function App() {
           clips={clips}
           sequenceIds={sequenceIds}
           selectedIds={videoSel}
-          onFocus={() => setFocus("video")}
+          onFocus={() => focusPanel("video")}
           onSelect={(id, shift) => {
             if (shift) {
               setVideoSel((prev) =>

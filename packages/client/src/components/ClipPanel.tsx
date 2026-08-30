@@ -90,3 +90,7 @@ function groupClips(clips: Clip[], sort: "date" | "name"): [string, Clip[]][] {
   }
   return [...map.entries()];
 }
+
+export function visibleClips(clips: Clip[], sort: "date" | "name"): Clip[] {
+  return groupClips(clips, sort).flatMap(([, list]) => list);
+}
