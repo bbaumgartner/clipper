@@ -1,0 +1,45 @@
+{
+  "name": "@clipper/electron",
+  "version": "0.1.0",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build:main": "node build.mjs",
+    "dev": "npm run build:main && wait-on http-get://127.0.0.1:47281/api/sources http-get://127.0.0.1:5173 && CLIPPER_DEV=1 electron .",
+    "build": "npm run build:main",
+    "dist": "electron-builder --mac"
+  },
+  "dependencies": {
+    "@clipper/server": "*"
+  },
+  "devDependencies": {
+    "electron": "^37.10.3",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.25.9",
+    "typescript": "^5.9.2",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "org.clipper.app",
+    "productName": "Clipper",
+    "copyright": "Copyright © Clipper contributors",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist/main.js"
+    },
+    "mac": {
+      "category": "public.app-category.video",
+      "target": [
+        "dmg"
+      ]
+    }
+  }
+}

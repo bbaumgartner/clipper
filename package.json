@@ -1,0 +1,30 @@
+{
+  "name": "clipper",
+  "private": true,
+  "version": "0.1.0",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "predev": "node scripts/free-ports.mjs",
+    "dev": "concurrently -n server,client,electron -c blue,green,magenta \"npm run dev -w @clipper/server\" \"npm run dev -w @clipper/client\" \"npm run dev -w @clipper/electron\"",
+    "build": "npm run build -w @clipper/shared && npm run build -w @clipper/server && npm run build -w @clipper/client && npm run build -w @clipper/electron",
+    "dist": "npm run build && npm run dist -w @clipper/electron"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.2"
+  },
+  "allowScripts": {
+    "electron@37.10.3": true,
+    "ffmpeg-static@5.3.0": true,
+    "ffprobe-static@3.1.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true
+  }
+}
