@@ -9,6 +9,15 @@ import type { Draft } from "./draft";
 
 type Panel = "source" | "clips" | "video";
 
+function toolbarLabel(clips: Clip[], status: string): string {
+  const queued = clips.filter((c) => c.status === "pending").length;
+  if (queued > 0) return queued === 1 ? "encoding…" : `encoding ${queued}…`;
+  const n = status.trim().toLowerCase();
+  if (!n || n === "ready" || n === "pending" || n === "running") return "";
+  if (n.endsWith(" ready")) return "";
+  return status;
+}
+
 export function App() {
   const [sources, setSources] = useState<Source[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -49,9 +58,13 @@ export function App() {
       } else if (ev.type === "sequence") {
         setSequenceIds(ev.clipIds);
       } else if (ev.type === "job") {
-        setStatus(ev.message ?? ev.status);
+        if (ev.status === "ready") setStatus("");
+        else if (ev.status === "failed") setStatus(ev.message ?? "failed");
+        else if (ev.message) setStatus(ev.message);
       } else if (ev.type === "export") {
-        setStatus(`export ${ev.status}`);
+        if (ev.status === "ready") setStatus("");
+        else if (ev.status === "failed") setStatus(ev.message ?? "export failed");
+        else setStatus("exporting…");
       }
     });
   }, []);
@@ -122,7 +135,7 @@ export function App() {
     setStatus("exporting…");
     try {
       await api.exportVideo(outputPath);
-      setStatus("export ready");
+      setStatus("");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err));
     }
@@ -232,7 +245,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <h1>Clipper</h1>
-        <span className="status">{status}</span>
+        <span className="status">{toolbarLabel(clips, status)}</span>
       </header>
       <div className="panels">
         <SourcePanel
