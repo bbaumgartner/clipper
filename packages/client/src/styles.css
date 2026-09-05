@@ -74,21 +74,29 @@ button.danger { background: #3f1212; border-color: #7f1d1d; }
 .filmstrip img, .filmstrip .slot { height: 100%; width: 192px; flex-shrink: 0; object-fit: cover; background: #1a1a1a; }
 .filmstrip-wrap.has-cut .filmstrip img,
 .filmstrip-wrap.has-cut .filmstrip .slot { height: calc(100% - var(--filmstrip-cut-gutter)); }
-.mark { position: absolute; top: 0; bottom: 0; width: 2px; pointer-events: none; }
-.filmstrip-wrap.has-cut .mark { bottom: var(--filmstrip-cut-gutter); }
-.mark.yellow { background: var(--yellow); }
-.playhead {
+.playhead,
+.cut-mark {
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 3;
   pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   transform: translateX(-50%);
 }
-.playhead-line { flex: 1; width: 2px; min-height: 0; background: var(--blue); }
+.playhead { z-index: 3; }
+.cut-mark { z-index: 2; }
+.playhead-line,
+.cut-mark-line { flex: 1; width: 2px; min-height: 0; }
+.playhead-line { background: var(--blue); }
+.cut-mark-line {
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--yellow) 0 4px,
+    transparent 4px 11px
+  );
+}
 .playhead-foot {
   position: relative;
   flex-shrink: 0;
@@ -105,16 +113,36 @@ button.danger { background: #3f1212; border-color: #7f1d1d; }
   white-space: nowrap;
   pointer-events: none;
 }
-.playhead-cut {
+.playhead-cut,
+.cut-mark-delete {
   pointer-events: auto;
   flex-shrink: 0;
   padding: 3px 10px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.03em;
-  background: #1e3a8a;
-  border-color: var(--blue);
   white-space: nowrap;
 }
+.playhead-cut {
+  background: #1e3a8a;
+  border-color: var(--blue);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.1;
+  padding: 3px 8px;
+}
+.playhead-cut-icon {
+  display: inline-block;
+  transform: rotate(180deg);
+}
 .playhead-cut:hover { background: #2563eb; }
+.cut-mark-delete {
+  margin: -1px 0 6px;
+  font-size: 14px;
+  line-height: 1.1;
+  background: #713f12;
+  border-color: var(--yellow);
+}
+.cut-mark-delete:hover { background: #a16207; }
 .close { width: 28px; height: 28px; font-size: 16px; line-height: 1; }

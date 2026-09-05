@@ -9,7 +9,7 @@ import {
   type Source,
 } from "@clipper/shared";
 import { api, mediaUrl } from "../api";
-import { applyDraftCut, emptyDraft, type Draft } from "../draft";
+import { applyDraftCut, emptyDraft, removeDraftCut, removeNearestLeftCut, type Draft } from "../draft";
 import { FilmstripView } from "./Filmstrip";
 
 export type OverlayState =
@@ -277,6 +277,16 @@ export function OverlayPlayer(props: {
     setDraft((d) => applyDraftCut(d, videoRef.current?.currentTime ?? 0));
   }
 
+  function deleteCut(t: number) {
+    if (!isCutRef.current) return;
+    setDraft((d) => removeDraftCut(d, t));
+  }
+
+  function deleteNearestLeftCut() {
+    if (!isCutRef.current) return;
+    setDraft((d) => removeNearestLeftCut(d, videoRef.current?.currentTime ?? 0));
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Shift") {
@@ -305,6 +315,11 @@ export function OverlayPlayer(props: {
       if (e.key === "Enter" && isCutRef.current) {
         take();
         cut();
+        return;
+      }
+      if (e.key === "-" && isCutRef.current) {
+        take();
+        deleteNearestLeftCut();
         return;
       }
       if (e.key === "ArrowLeft") {
@@ -366,6 +381,7 @@ export function OverlayPlayer(props: {
         magnify={magnify}
         marks={isCut ? draft.marks : undefined}
         onCut={isCut ? cut : undefined}
+        onDeleteCut={isCut ? deleteCut : undefined}
       />
     </div>
   );

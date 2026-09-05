@@ -64,6 +64,7 @@ export function FilmstripView(props: {
   magnify?: boolean;
   marks?: number[];
   onCut?: () => void;
+  onDeleteCut?: (t: number) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const duration = props.duration || props.strip?.duration || 1;
@@ -99,11 +100,23 @@ export function FilmstripView(props: {
           ),
         )}
         {(props.marks ?? []).map((t) => (
-          <div
-            key={t}
-            className="mark yellow"
-            style={{ left: xAtTime(t, items) }}
-          />
+          <div key={t} className="cut-mark" style={{ left: xAtTime(t, items) }}>
+            <div className="cut-mark-line" />
+            {props.onDeleteCut ? (
+              <button
+                type="button"
+                className="cut-mark-delete"
+                data-testid="cut-delete"
+                title="Delete cut"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onDeleteCut?.(t);
+                }}
+              >
+                -
+              </button>
+            ) : null}
+          </div>
         ))}
         <div className="playhead" style={{ left: playhead }}>
           <div className="playhead-line" />
@@ -117,12 +130,15 @@ export function FilmstripView(props: {
                 className="playhead-cut"
                 data-testid="cut"
                 title="Cut at playhead"
+                aria-label="Cut"
                 onClick={(e) => {
                   e.stopPropagation();
                   props.onCut?.();
                 }}
               >
-                Cut
+                <span className="playhead-cut-icon" aria-hidden="true">
+                  ✂️
+                </span>
               </button>
             </div>
           ) : null}
