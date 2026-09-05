@@ -145,4 +145,27 @@ export const CUT_EPSILON_SEC = 0.05;
 export const SEEK_STEP_SEC = 0.5;
 export const SEEK_JUMP_SEC = 5;
 export const FILMSTRIP_MAX_FRAMES = 120;
-export const LIST_THUMB_COUNT = 5;
+export const LIST_THUMB_MIN = 5;
+export const LIST_THUMB_MAX = 20;
+export const LIST_THUMB_WIDTH = 72;
+export const LIST_THUMB_GAP = 2;
+
+/** How many list thumbs to render for a strip of the given CSS width. */
+export function listThumbVisibleCount(widthPx: number, storedCount: number): number {
+  const width = Number.isFinite(widthPx) ? Math.max(0, widthPx) : 0;
+  const stored = Number.isFinite(storedCount) ? Math.max(0, storedCount) : 0;
+  const fitted = Math.floor((width + LIST_THUMB_GAP) / (LIST_THUMB_WIDTH + LIST_THUMB_GAP));
+  const want = Math.max(LIST_THUMB_MIN, fitted);
+  const cap = stored > 0 ? Math.min(stored, LIST_THUMB_MAX) : LIST_THUMB_MIN;
+  return Math.min(want, cap, LIST_THUMB_MAX);
+}
+
+/** Evenly spaced indices into a stored thumb set for a visible count. */
+export function listThumbIndices(visible: number, stored: number): number[] {
+  const v = Math.max(0, Math.floor(visible));
+  const n = Math.max(0, Math.floor(stored));
+  if (v <= 0 || n <= 0) return [];
+  if (v === 1 || n === 1) return [0];
+  if (v >= n) return Array.from({ length: n }, (_, i) => i);
+  return Array.from({ length: v }, (_, i) => Math.round((i * (n - 1)) / (v - 1)));
+}

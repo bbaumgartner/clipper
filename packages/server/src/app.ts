@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
   FILMSTRIP_MAX_FRAMES,
-  LIST_THUMB_COUNT,
+  LIST_THUMB_MAX,
   isHtml5Safe,
   type Clip,
   type Filmstrip,
@@ -47,6 +47,7 @@ export class ClipperApp {
   readonly stripsDir: string;
   readonly previewsDir: string;
   private filmstripJobs = new Set<string>();
+  private listThumbJobs = new Set<string>();
   private previewJobs = new Set<string>();
   private previewErrors = new Map<string, string>();
 
@@ -254,14 +255,14 @@ export class ClipperApp {
       this.db.prepare("UPDATE sources SET broken = ? WHERE id = ?").run(broken, row.id);
       row = { ...row, broken };
     }
-    return sourceToDto(row, countThumbs(this.thumbsDir, `source-${row.id}`, LIST_THUMB_COUNT));
+    return sourceToDto(row, countThumbs(this.thumbsDir, `source-${row.id}`, LIST_THUMB_MAX));
   }
 
   clipDto(row: ClipRow): Clip {
     const source = row.source_id ? this.getSource(row.source_id) : undefined;
     return clipToDto(
       row,
-      countThumbs(this.thumbsDir, `clip-${row.id}`, LIST_THUMB_COUNT),
+      countThumbs(this.thumbsDir, `clip-${row.id}`, LIST_THUMB_MAX),
       source?.name ?? null,
     );
   }
@@ -269,14 +270,18 @@ export class ClipperApp {
   listSources(sort: "date" | "name"): Source[] {
     const order = sort === "name" ? "name COLLATE NOCASE ASC" : "added_at DESC";
     const rows = this.db.prepare(`SELECT * FROM sources ORDER BY ${order}`).all() as SourceRow[];
-    return rows.map((r) => this.sourceDto(r));
+    const dtos = rows.map((r) => this.sourceDto(r));
+    for (const dto of dtos) this.ensureListThumbs("source", dto.id);
+    return dtos;
   }
 
   listClips(): Clip[] {
     const rows = this.db
       .prepare("SELECT * FROM clips ORDER BY created_at DESC")
       .all() as ClipRow[];
-    return rows.map((r) => this.clipDto(r));
+    const dtos = rows.map((r) => this.clipDto(r));
+    for (const dto of dtos) this.ensureListThumbs("clip", dto.id);
+    return dtos;
   }
 
   listSequenceIds(): string[] {
@@ -323,17 +328,96 @@ export class ClipperApp {
     if (!row) throw new Error("insert failed");
     const dto = this.sourceDto(row);
     this.events.emitEvent({ type: "source", source: dto });
-    void this.queue.enqueue(() => this.buildSourceThumbs(row));
+    this.ensureListThumbs("source", id);
     this.ensurePreview("source", id);
     return dto;
   }
 
+  private thumbPartPath(file: string): string {
+    return file.endsWith(".jpg") ? `${file.slice(0, -4)}.part.jpg` : `${file}.part`;
+  }
+
+  private async extractThumbsStaged(
+    input: string,
+    duration: number,
+    outputs: string[],
+  ): Promise<void> {
+    const parts = outputs.map((p) => this.thumbPartPath(p));
+    try {
+      await extractThumbs(input, duration, parts);
+      if (parts.some((p) => !fs.existsSync(p))) {
+        throw new Error("incomplete thumb extract");
+      }
+      for (let i = 0; i < outputs.length; i++) {
+        const part = parts[i];
+        const dest = outputs[i];
+        if (!part || !dest) continue;
+        fs.renameSync(part, dest);
+      }
+    } finally {
+      for (const part of parts) fs.rmSync(part, { force: true });
+    }
+  }
+
+  private removeListThumbs(kind: "source" | "clip", id: string): void {
+    for (let i = 0; i < LIST_THUMB_MAX; i++) {
+      const file = kind === "source" ? this.sourceThumbPath(id, i) : this.clipThumbPath(id, i);
+      fs.rmSync(file, { force: true });
+      fs.rmSync(this.thumbPartPath(file), { force: true });
+      fs.rmSync(`${file}.part`, { force: true });
+    }
+  }
+
+  ensureListThumbs(kind: "source" | "clip", id: string): void {
+    const key = `${kind}:${id}`;
+    if (this.listThumbJobs.has(key)) return;
+    if (kind === "source") {
+      const source = this.getSource(id);
+      if (!source || source.broken === 1 || !fs.existsSync(source.path)) return;
+    } else {
+      const clip = this.getClip(id);
+      if (!clip || clip.status !== "ready" || !this.resolveClipFile(clip)) return;
+    }
+    const prefix = kind === "source" ? `source-${id}` : `clip-${id}`;
+    if (countThumbs(this.thumbsDir, prefix, LIST_THUMB_MAX) >= LIST_THUMB_MAX) return;
+    this.listThumbJobs.add(key);
+    void this.queue.enqueue(async () => {
+      try {
+        const still = kind === "source" ? `source-${id}` : `clip-${id}`;
+        if (countThumbs(this.thumbsDir, still, LIST_THUMB_MAX) >= LIST_THUMB_MAX) return;
+        await this.rebuildListThumbs(kind, id);
+      } finally {
+        this.listThumbJobs.delete(key);
+      }
+    });
+  }
+
+  private async rebuildListThumbs(kind: "source" | "clip", id: string): Promise<void> {
+    if (kind === "source") {
+      const row = this.getSource(id);
+      if (row) await this.buildSourceThumbs(row);
+      return;
+    }
+    const clip = this.getClip(id);
+    if (!clip) return;
+    const file = this.resolveClipFile(clip);
+    if (!file || clip.status !== "ready") return;
+    const outputs = Array.from({ length: LIST_THUMB_MAX }, (_, i) => this.clipThumbPath(id, i));
+    try {
+      await this.extractThumbsStaged(file, clip.duration, outputs);
+      const next = this.getClip(id);
+      if (next) this.events.emitEvent({ type: "clip", clip: this.clipDto(next) });
+    } catch {
+      // thumbs are optional
+    }
+  }
+
   private async buildSourceThumbs(row: SourceRow): Promise<void> {
-    const outputs = Array.from({ length: LIST_THUMB_COUNT }, (_, i) =>
+    const outputs = Array.from({ length: LIST_THUMB_MAX }, (_, i) =>
       this.sourceThumbPath(row.id, i),
     );
     try {
-      await extractThumbs(row.path, row.duration, outputs);
+      await this.extractThumbsStaged(row.path, row.duration, outputs);
       const source = this.getSource(row.id);
       if (source) this.events.emitEvent({ type: "source", source: this.sourceDto(source) });
     } catch {
@@ -347,9 +431,7 @@ export class ClipperApp {
       throw Object.assign(new Error("not found"), { statusCode: 404 });
     }
     this.db.prepare("DELETE FROM sources WHERE id = ?").run(id);
-    for (let i = 0; i < LIST_THUMB_COUNT; i++) {
-      fs.rmSync(this.sourceThumbPath(id, i), { force: true });
-    }
+    this.removeListThumbs("source", id);
     fs.rmSync(this.sourceStripDir(id), { recursive: true, force: true });
     fs.rmSync(this.previewPath("source", id), { force: true });
     fs.rmSync(`${this.previewPath("source", id)}.part.mp4`, { force: true });
@@ -446,10 +528,10 @@ export class ClipperApp {
         return;
       }
       const probe = await probeFile(out);
-      const thumbs = Array.from({ length: LIST_THUMB_COUNT }, (_, i) =>
+      const thumbs = Array.from({ length: LIST_THUMB_MAX }, (_, i) =>
         this.clipThumbPath(id, i),
       );
-      await extractThumbs(out, probe.duration, thumbs);
+      await this.extractThumbsStaged(out, probe.duration, thumbs);
       this.db
         .prepare(
           `UPDATE clips SET status = 'ready', error = NULL, file_path = ?, duration = ?,
@@ -490,9 +572,7 @@ export class ClipperApp {
     const existing = this.resolveClipFile(clip);
     if (existing) fs.rmSync(existing, { force: true });
     fs.rmSync(this.clipFilePath(id), { force: true });
-    for (let i = 0; i < LIST_THUMB_COUNT; i++) {
-      fs.rmSync(this.clipThumbPath(id, i), { force: true });
-    }
+    this.removeListThumbs("clip", id);
     fs.rmSync(this.clipStripDir(id), { recursive: true, force: true });
     fs.rmSync(this.previewPath("clip", id), { force: true });
     fs.rmSync(`${this.previewPath("clip", id)}.part.mp4`, { force: true });

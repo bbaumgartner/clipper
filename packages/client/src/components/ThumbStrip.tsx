@@ -1,4 +1,5 @@
-import { LIST_THUMB_COUNT } from "@clipper/shared";
+import { useLayoutEffect, useRef, useState } from "react";
+import { listThumbIndices, listThumbVisibleCount } from "@clipper/shared";
 import { thumbUrl } from "../api";
 
 export function ThumbStrip(props: {
@@ -6,16 +7,33 @@ export function ThumbStrip(props: {
   id: string;
   count: number;
 }) {
-  const n = Math.min(LIST_THUMB_COUNT, props.count);
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const apply = () => setWidth(el.clientWidth);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const visible = listThumbVisibleCount(width, props.count);
+  const indices = listThumbIndices(visible, props.count);
+
   return (
-    <div className="thumbs">
-      {Array.from({ length: LIST_THUMB_COUNT }, (_, i) =>
-        i < n ? (
-          <img key={i} src={thumbUrl(props.kind, props.id, i)} alt="" />
-        ) : (
-          <span key={i} style={{ width: 72, background: "#111" }} />
-        ),
-      )}
+    <div className="thumbs" ref={ref}>
+      {props.count <= 0
+        ? Array.from({ length: visible }, (_, i) => <span key={i} />)
+        : indices.map((thumbIndex) => (
+            <img
+              key={thumbIndex}
+              src={thumbUrl(props.kind, props.id, thumbIndex, props.count)}
+              alt=""
+            />
+          ))}
     </div>
   );
 }

@@ -89,8 +89,9 @@ export const api = {
     }),
 };
 
-export function thumbUrl(kind: "source" | "clip", id: string, n: number): string {
-  return `${apiBase()}/api/${kind === "source" ? "sources" : "clips"}/${id}/thumbs/${n}`;
+export function thumbUrl(kind: "source" | "clip", id: string, n: number, version?: number): string {
+  const q = version != null ? `?v=${version}` : "";
+  return `${apiBase()}/api/${kind === "source" ? "sources" : "clips"}/${id}/thumbs/${n}${q}`;
 }
 
 export function mediaUrl(kind: "source" | "clip", id: string, proxy = false): string {

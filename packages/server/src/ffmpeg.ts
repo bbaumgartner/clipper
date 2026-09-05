@@ -177,6 +177,9 @@ export async function extractStill(
     "4",
     output,
   ]);
+  if (!fs.existsSync(output)) {
+    throw new Error(`ffmpeg wrote no frame at ${time.toFixed(3)}s`);
+  }
 }
 
 export async function extractThumbs(
@@ -185,8 +188,9 @@ export async function extractThumbs(
   outputs: string[],
 ): Promise<void> {
   const n = outputs.length;
+  const last = duration > 0 ? Math.max(0, duration - 0.04) : 0;
   for (let i = 0; i < n; i++) {
-    const t = duration * ((i + 0.5) / n);
+    const t = Math.min(duration * ((i + 0.5) / n), last);
     const out = outputs[i];
     if (!out) continue;
     await extractStill(input, t, out);

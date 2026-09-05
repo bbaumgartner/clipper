@@ -43,8 +43,9 @@ button.danger { background: #3f1212; border-color: #7f1d1d; }
 .row-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .row-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-title .meta { color: var(--muted); flex-shrink: 0; }
-.thumbs { display: flex; gap: 2px; height: 40px; }
-.thumbs img { height: 40px; width: 72px; object-fit: cover; background: #000; }
+.thumbs { display: flex; gap: 2px; height: 40px; width: 100%; }
+.thumbs img, .thumbs span { flex: 1; min-width: 0; height: 40px; object-fit: cover; background: #000; }
+.thumbs span { background: #111; }
 .badge { font-size: 10px; color: var(--warn); }
 
 .overlay { position: fixed; inset: 0; background: #000d; z-index: 20; display: flex; flex-direction: column; }
