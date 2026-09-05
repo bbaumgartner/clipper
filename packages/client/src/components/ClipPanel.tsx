@@ -56,7 +56,9 @@ export function ClipPanel(props: {
                     <span className="name">
                       {dur(c.startSec)}–{dur(c.endSec)}
                     </span>
-                    <span className="meta">{c.status}</span>
+                    <span className="meta">
+                      {c.status === "ready" ? dur(c.duration) : c.status}
+                    </span>
                     {c.status === "failed" ? (
                       <button
                         onClick={(e) => {
