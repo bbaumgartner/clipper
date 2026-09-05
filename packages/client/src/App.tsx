@@ -68,31 +68,36 @@ export function App() {
   }, [reload]);
 
   useEffect(() => {
-    return subscribeEvents((ev) => {
-      if (ev.type === "source") {
-        setSources((prev) => upsert(prev, ev.source, (x) => x.id));
-      } else if (ev.type === "clip") {
-        setClips((prev) => upsert(prev, ev.clip, (x) => x.id));
-      } else if (ev.type === "sequence") {
-        setSequenceIds(ev.clipIds);
-      } else if (ev.type === "job") {
-        const key = jobKey(ev);
-        setJobs((prev) => {
-          const next = new Map(prev);
-          if (ev.status === "ready") next.delete(key);
-          else if (ev.status === "failed") next.set(key, ev.message ?? "failed");
-          else if (ev.message) next.set(key, ev.message);
-          else next.delete(key);
-          return next;
-        });
-        if (ev.status === "failed") setStatus(ev.message ?? "failed");
-      } else if (ev.type === "export") {
-        if (ev.status === "ready") setStatus("");
-        else if (ev.status === "failed") setStatus(ev.message ?? "export failed");
-        else setStatus("exporting…");
-      }
-    });
-  }, []);
+    return subscribeEvents(
+      (ev) => {
+        if (ev.type === "source") {
+          setSources((prev) => upsert(prev, ev.source, (x) => x.id));
+        } else if (ev.type === "clip") {
+          setClips((prev) => upsert(prev, ev.clip, (x) => x.id));
+        } else if (ev.type === "sequence") {
+          setSequenceIds(ev.clipIds);
+        } else if (ev.type === "job") {
+          const key = jobKey(ev);
+          setJobs((prev) => {
+            const next = new Map(prev);
+            if (ev.status === "ready") next.delete(key);
+            else if (ev.status === "failed") next.set(key, ev.message ?? "failed");
+            else if (ev.message) next.set(key, ev.message);
+            else next.delete(key);
+            return next;
+          });
+          if (ev.status === "failed") setStatus(ev.message ?? "failed");
+        } else if (ev.type === "export") {
+          if (ev.status === "ready") setStatus("");
+          else if (ev.status === "failed") setStatus(ev.message ?? "export failed");
+          else setStatus("exporting…");
+        }
+      },
+      () => {
+        void reload();
+      },
+    );
+  }, [reload]);
 
   async function addFiles() {
     const paths = (await window.clipper?.selectFiles()) ?? [];

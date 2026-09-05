@@ -103,7 +103,10 @@ export function stripFrameUrl(kind: "source" | "clip", id: string, n: number): s
   return `${apiBase()}/api/${kind === "source" ? "sources" : "clips"}/${id}/filmstrip/${n}`;
 }
 
-export function subscribeEvents(onEvent: (event: SseEvent) => void): () => void {
+export function subscribeEvents(
+  onEvent: (event: SseEvent) => void,
+  onOpen?: () => void,
+): () => void {
   const es = new EventSource(`${apiBase()}/api/events`);
   es.onmessage = (msg) => {
     try {
@@ -112,5 +115,6 @@ export function subscribeEvents(onEvent: (event: SseEvent) => void): () => void 
       /* ignore */
     }
   };
+  if (onOpen) es.onopen = () => onOpen();
   return () => es.close();
 }

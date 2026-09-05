@@ -32,6 +32,7 @@ import {
   extractFilmstrip,
   extractThumbs,
   keyframesNear,
+  mediaFileReady,
   onKeyframe,
   probeFile,
   writeConcatList,
@@ -40,6 +41,15 @@ import { countThumbs, resetStripDir, stripMetaCurrent, writeStripMeta } from "./
 import { JobQueue } from "./queue.js";
 
 const VIDEO_EXT = new Set([".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi"]);
+const UUID_RE =
+  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const CLIP_FILE_RE = new RegExp(`^(${UUID_RE})\\.mp4(?:\\.part\\.mp4)?$`, "i");
+const KIND_FILE_RE = new RegExp(
+  `^(source|clip)-(${UUID_RE})(?:-\\d+)?(?:\\.mp4)?(?:\\.part\\.mp4)?$`,
+  "i",
+);
+const THUMB_RE = new RegExp(`^(source|clip)-(${UUID_RE})-\\d+(?:\\.part)?\\.jpg$`, "i");
+const STRIP_DIR_RE = new RegExp(`^(source|clip)-(${UUID_RE})$`, "i");
 
 export class ClipperApp {
   readonly db: SqlDatabase;
@@ -68,8 +78,7 @@ export class ClipperApp {
     this.db = openDb(this.dataDir);
     this.refreshBrokenFlags();
     this.migrateRelativeClipPaths();
-    const existing = this.db.prepare("SELECT id FROM sources").all() as { id: string }[];
-    for (const row of existing) this.ensurePreview("source", row.id);
+    this.recoverWorkspace();
   }
 
   private refreshBrokenFlags(): void {
@@ -114,6 +123,144 @@ export class ClipperApp {
     for (const row of rows) {
       const resolved = this.resolveClipFile(row);
       if (resolved && resolved !== row.file_path) upd.run(resolved, row.id);
+    }
+  }
+
+  /** Replay unfinished work left behind if the previous process died mid-job. */
+  private recoverWorkspace(): void {
+    this.removeStaleTempFiles();
+    this.pruneOrphanMedia();
+    this.pruneDanglingSequence();
+    this.resumeInterruptedClips();
+    this.resumeBackgroundJobs();
+  }
+
+  private readNames(dir: string): string[] {
+    try {
+      return fs.readdirSync(dir);
+    } catch {
+      return [];
+    }
+  }
+
+  private isTempName(name: string): boolean {
+    return name.includes(".part.") || name.endsWith(".part");
+  }
+
+  private removeStaleTempFiles(): void {
+    for (const name of this.readNames(this.thumbsDir)) {
+      if (this.isTempName(name)) fs.rmSync(path.join(this.thumbsDir, name), { force: true });
+    }
+    for (const name of this.readNames(this.dataDir)) {
+      if (name.startsWith("concat-") && name.endsWith(".txt")) {
+        fs.rmSync(path.join(this.dataDir, name), { force: true });
+      }
+    }
+  }
+
+  private knownIds(): { sources: Set<string>; clips: Set<string> } {
+    const sources = new Set(
+      (this.db.prepare("SELECT id FROM sources").all() as { id: string }[]).map((r) => r.id),
+    );
+    const clips = new Set(
+      (this.db.prepare("SELECT id FROM clips").all() as { id: string }[]).map((r) => r.id),
+    );
+    return { sources, clips };
+  }
+
+  private knownKind(kind: string, id: string, known: { sources: Set<string>; clips: Set<string> }): boolean {
+    if (kind === "source") return known.sources.has(id);
+    if (kind === "clip") return known.clips.has(id);
+    return false;
+  }
+
+  private pruneOrphanMedia(): void {
+    const known = this.knownIds();
+    for (const name of this.readNames(this.clipsDir)) {
+      const clip = CLIP_FILE_RE.exec(name);
+      if (!clip?.[1] || known.clips.has(clip[1])) continue;
+      fs.rmSync(path.join(this.clipsDir, name), { force: true });
+    }
+    for (const name of this.readNames(this.previewsDir)) {
+      const preview = KIND_FILE_RE.exec(name);
+      if (!preview || this.knownKind(preview[1] ?? "", preview[2] ?? "", known)) continue;
+      fs.rmSync(path.join(this.previewsDir, name), { force: true });
+    }
+    for (const name of this.readNames(this.thumbsDir)) {
+      const thumb = THUMB_RE.exec(name);
+      if (!thumb || this.knownKind(thumb[1] ?? "", thumb[2] ?? "", known)) continue;
+      fs.rmSync(path.join(this.thumbsDir, name), { force: true });
+    }
+    for (const name of this.readNames(this.stripsDir)) {
+      const strip = STRIP_DIR_RE.exec(name);
+      if (!strip || this.knownKind(strip[1] ?? "", strip[2] ?? "", known)) continue;
+      fs.rmSync(path.join(this.stripsDir, name), { recursive: true, force: true });
+    }
+  }
+
+  private pruneDanglingSequence(): void {
+    const ids = this.listSequenceIds();
+    const keep = ids.filter((id) => this.getClip(id));
+    if (keep.length !== ids.length) this.setSequence(keep);
+  }
+
+  private clipLooksPresent(clip: ClipRow): boolean {
+    const file = this.resolveClipFile(clip);
+    if (!file) return false;
+    try {
+      return fs.statSync(file).size > 32;
+    } catch {
+      return false;
+    }
+  }
+
+  private resumeInterruptedClips(): void {
+    const rows = this.db.prepare("SELECT * FROM clips").all() as ClipRow[];
+    for (const clip of rows) {
+      if (clip.status === "pending") {
+        this.resumeCut(clip.id);
+        continue;
+      }
+      if (clip.status !== "ready") continue;
+      if (this.clipLooksPresent(clip)) continue;
+      const source = clip.source_id ? this.getSource(clip.source_id) : undefined;
+      if (!source || !fs.existsSync(source.path)) {
+        this.failClip(clip.id, "clip file missing");
+        continue;
+      }
+      this.db
+        .prepare("UPDATE clips SET status = 'pending', error = NULL, file_path = NULL WHERE id = ?")
+        .run(clip.id);
+      const next = this.getClip(clip.id);
+      if (next) this.events.emitEvent({ type: "clip", clip: this.clipDto(next) });
+      this.resumeCut(clip.id);
+    }
+  }
+
+  private resumeCut(id: string): void {
+    const clip = this.getClip(id);
+    if (!clip) return;
+    const source = clip.source_id ? this.getSource(clip.source_id) : undefined;
+    if (!source || !fs.existsSync(source.path)) {
+      this.failClip(id, "source file missing");
+      return;
+    }
+    this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "pending" });
+    void this.queue.enqueue(() => this.runCut(id));
+  }
+
+  private resumeBackgroundJobs(): void {
+    const sources = this.db.prepare("SELECT id FROM sources").all() as { id: string }[];
+    for (const row of sources) {
+      this.ensureListThumbs("source", row.id);
+      this.ensurePreview("source", row.id);
+    }
+    const clips = this.db
+      .prepare("SELECT id FROM clips WHERE status = 'ready'")
+      .all() as { id: string }[];
+    for (const row of clips) {
+      this.ensureListThumbs("clip", row.id);
+      this.ensurePreview("clip", row.id);
     }
   }
 
@@ -521,8 +668,7 @@ export class ClipperApp {
       const dto = this.clipDto(clip);
       created.push(dto);
       this.events.emitEvent({ type: "clip", clip: dto });
-      this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "pending" });
-      void this.queue.enqueue(() => this.runCut(id));
+      this.resumeCut(id);
     }
     return created;
   }
@@ -540,8 +686,7 @@ export class ClipperApp {
     if (!next) throw new Error("missing");
     const dto = this.clipDto(next);
     this.events.emitEvent({ type: "clip", clip: dto });
-    this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "pending" });
-    void this.queue.enqueue(() => this.runCut(id));
+    this.resumeCut(id);
     return dto;
   }
 
@@ -556,19 +701,31 @@ export class ClipperApp {
     this.db.prepare("UPDATE clips SET status = 'pending', error = NULL WHERE id = ?").run(id);
     this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "running", progress: 0 });
     const out = this.clipFilePath(id);
+    const tmp = `${out}.part.mp4`;
     try {
-      const kStart = await keyframesNear(source.path, clip.start_sec);
-      const kEnd = await keyframesNear(source.path, clip.end_sec);
-      const copy =
-        onKeyframe(clip.start_sec, kStart, source.fps) &&
-        onKeyframe(clip.end_sec, kEnd, source.fps);
-      if (copy) {
-        await cutCopy(source.path, clip.start_sec, clip.end_sec, out);
+      if (await mediaFileReady(out)) {
+        fs.rmSync(tmp, { force: true });
+      } else if (await mediaFileReady(tmp)) {
+        fs.rmSync(out, { force: true });
+        fs.renameSync(tmp, out);
       } else {
-        await cutEncode(source.path, clip.start_sec, clip.end_sec, out);
+        fs.rmSync(out, { force: true });
+        fs.rmSync(tmp, { force: true });
+        const kStart = await keyframesNear(source.path, clip.start_sec);
+        const kEnd = await keyframesNear(source.path, clip.end_sec);
+        const copy =
+          onKeyframe(clip.start_sec, kStart, source.fps) &&
+          onKeyframe(clip.end_sec, kEnd, source.fps);
+        if (copy) {
+          await cutCopy(source.path, clip.start_sec, clip.end_sec, tmp);
+        } else {
+          await cutEncode(source.path, clip.start_sec, clip.end_sec, tmp);
+        }
+        fs.renameSync(tmp, out);
       }
       if (!this.getClip(id)) {
         fs.rmSync(out, { force: true });
+        fs.rmSync(tmp, { force: true });
         return;
       }
       const probe = await probeFile(out);
@@ -600,6 +757,7 @@ export class ClipperApp {
       this.ensurePreview("clip", id);
     } catch (err) {
       fs.rmSync(out, { force: true });
+      fs.rmSync(tmp, { force: true });
       if (!this.getClip(id)) return;
       this.failClip(id, err instanceof Error ? err.message : String(err));
     }
@@ -620,6 +778,7 @@ export class ClipperApp {
     fs.rmSync(this.clipStripDir(id), { recursive: true, force: true });
     fs.rmSync(this.previewPath("clip", id), { force: true });
     fs.rmSync(`${this.previewPath("clip", id)}.part.mp4`, { force: true });
+    fs.rmSync(`${this.clipFilePath(id)}.part.mp4`, { force: true });
   }
 
   deleteClip(id: string): void {

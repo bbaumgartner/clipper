@@ -76,6 +76,16 @@ export async function runFfmpeg(args: string[]): Promise<void> {
   }
 }
 
+export async function mediaFileReady(filePath: string): Promise<boolean> {
+  try {
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).size <= 32) return false;
+    const probe = await probeFile(filePath);
+    return probe.duration > 0.04 && probe.width > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function probeFile(filePath: string): Promise<Probe> {
   const { stdout, code, stderr } = await runCommand(ffprobeBin(), [
     "-v",
@@ -309,7 +319,17 @@ export async function encodePreview(
   hasAudio: boolean,
 ): Promise<void> {
   const tmp = `${output}.part.mp4`;
+  if (await mediaFileReady(output)) {
+    fs.rmSync(tmp, { force: true });
+    return;
+  }
+  if (await mediaFileReady(tmp)) {
+    fs.rmSync(output, { force: true });
+    fs.renameSync(tmp, output);
+    return;
+  }
   fs.rmSync(tmp, { force: true });
+  fs.rmSync(output, { force: true });
   const audio = hasAudio
     ? ["-c:a", "aac", "-b:a", "160k", "-ac", "2"]
     : ["-an"];
