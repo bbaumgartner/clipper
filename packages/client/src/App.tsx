@@ -304,6 +304,9 @@ export function App() {
       } else if (e.key === "+" && focus === "source") {
         e.preventDefault();
         void addFiles();
+      } else if (e.key === "e" && focus === "video") {
+        e.preventDefault();
+        void exportVideo();
       }
     };
     window.addEventListener("keydown", onKey);
