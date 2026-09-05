@@ -54,6 +54,7 @@ export function FilmstripView(props: {
   duration: number;
   magnify?: boolean;
   marks?: number[];
+  onCut?: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const duration = props.duration || props.strip?.duration || 1;
@@ -61,6 +62,7 @@ export function FilmstripView(props: {
   const items = layoutFrames(props.strip, duration, props.currentTime, magnify);
   const totalW = Math.max(items.length * FRAME_W, 1);
   const playhead = xAtTime(props.currentTime, items);
+  const canCut = props.onCut != null;
 
   useEffect(() => {
     const el = scroller.current;
@@ -70,7 +72,10 @@ export function FilmstripView(props: {
   }, [playhead]);
 
   return (
-    <div className={`filmstrip-wrap${magnify ? " magnify" : ""}`} ref={scroller}>
+    <div
+      className={`filmstrip-wrap${magnify ? " magnify" : ""}${canCut ? " has-cut" : ""}`}
+      ref={scroller}
+    >
       <div className="filmstrip" style={{ width: totalW }}>
         {items.map((item) =>
           item.ready ? (
@@ -83,7 +88,6 @@ export function FilmstripView(props: {
             <div key={item.index} className="slot" />
           ),
         )}
-        <div className="mark blue" style={{ left: playhead }} />
         {(props.marks ?? []).map((t) => (
           <div
             key={t}
@@ -91,6 +95,23 @@ export function FilmstripView(props: {
             style={{ left: xAtTime(t, items) }}
           />
         ))}
+        <div className="playhead" style={{ left: playhead }}>
+          <div className="playhead-line" />
+          {canCut ? (
+            <button
+              type="button"
+              className="playhead-cut"
+              data-testid="cut"
+              title="Cut at playhead"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onCut?.();
+              }}
+            >
+              Cut
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

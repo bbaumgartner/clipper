@@ -11,6 +11,8 @@
   --blue: #3b82f6;
   --danger: #ef4444;
   --warn: #f59e0b;
+  --filmstrip-h: 128px;
+  --filmstrip-cut-gutter: 38px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 12px;
 }
@@ -59,12 +61,45 @@ button.danger { background: #3f1212; border-color: #7f1d1d; }
 .overlay-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
 .overlay-bar .spacer { flex: 1; }
 .overlay video { flex: 1; width: 100%; min-height: 0; background: #000; outline: none; }
-.overlay-note { position: absolute; inset: 40px 0 160px; display: flex; align-items: center; justify-content: center; color: var(--muted); pointer-events: none; z-index: 2; }
-.filmstrip-wrap { position: relative; height: 128px; margin: 8px 10px 12px; overflow-x: auto; overflow-y: hidden; background: #111; border: 1px solid var(--border); }
+.overlay-note { position: absolute; inset: 40px 0 calc(var(--filmstrip-h) + var(--filmstrip-cut-gutter) + 32px); display: flex; align-items: center; justify-content: center; color: var(--muted); pointer-events: none; z-index: 2; }
+.filmstrip-wrap { position: relative; height: var(--filmstrip-h); margin: 8px 10px 12px; overflow-x: auto; overflow-y: hidden; background: #111; border: 1px solid var(--border); }
+.filmstrip-wrap.has-cut {
+  height: calc(var(--filmstrip-h) + var(--filmstrip-cut-gutter));
+  background:
+    linear-gradient(var(--border), var(--border)) 0 calc(100% - var(--filmstrip-cut-gutter)) / 100% 1px no-repeat,
+    linear-gradient(#111 calc(100% - var(--filmstrip-cut-gutter)), #0a0a0a calc(100% - var(--filmstrip-cut-gutter)));
+}
 .filmstrip-wrap.magnify { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 45%, transparent); }
-.filmstrip { position: relative; display: flex; height: 100%; }
+.filmstrip { position: relative; display: flex; align-items: flex-start; height: 100%; }
 .filmstrip img, .filmstrip .slot { height: 100%; width: 192px; flex-shrink: 0; object-fit: cover; background: #1a1a1a; }
+.filmstrip-wrap.has-cut .filmstrip img,
+.filmstrip-wrap.has-cut .filmstrip .slot { height: calc(100% - var(--filmstrip-cut-gutter)); }
 .mark { position: absolute; top: 0; bottom: 0; width: 2px; pointer-events: none; }
-.mark.blue { background: var(--blue); }
+.filmstrip-wrap.has-cut .mark { bottom: var(--filmstrip-cut-gutter); }
 .mark.yellow { background: var(--yellow); }
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+.playhead-line { flex: 1; width: 2px; min-height: 0; background: var(--blue); }
+.playhead-cut {
+  pointer-events: auto;
+  flex-shrink: 0;
+  margin: -1px 0 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: #1e3a8a;
+  border-color: var(--blue);
+  white-space: nowrap;
+}
+.playhead-cut:hover { background: #2563eb; }
 .close { width: 28px; height: 28px; font-size: 16px; line-height: 1; }

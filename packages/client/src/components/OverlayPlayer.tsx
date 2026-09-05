@@ -346,18 +346,13 @@ export function OverlayPlayer(props: {
         <span>{formatTime(time)}</span>
         <span className="spacer" />
         {isCut ? (
-          <>
-            <button data-testid="cut" onClick={cut}>
-              Cut
-            </button>
-            <button
-              className="primary"
-              data-testid="apply"
-              onClick={() => props.onClose(true, draft)}
-            >
-              Apply
-            </button>
-          </>
+          <button
+            className="primary"
+            data-testid="apply"
+            onClick={() => props.onClose(true, draft)}
+          >
+            Apply
+          </button>
         ) : null}
       </div>
       <video ref={videoRef} autoPlay playsInline preload="auto" />
@@ -370,6 +365,7 @@ export function OverlayPlayer(props: {
         duration={item.end != null ? item.end - item.start : item.duration}
         magnify={magnify}
         marks={isCut ? draft.marks : undefined}
+        onCut={isCut ? cut : undefined}
       />
     </div>
   );
