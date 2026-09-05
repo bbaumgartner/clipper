@@ -129,6 +129,27 @@ export function App() {
     }
   }
 
+  async function clearClips() {
+    if (clips.length === 0) return;
+    if (
+      !window.confirm(
+        "All clips will be removed from the library and deleted from disk, including any in the video sequence. This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.clearClips();
+      setClips([]);
+      setClipSel(null);
+      setSequenceIds([]);
+      setVideoSel([]);
+      await reload();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   async function exportVideo() {
     const outputPath = (await window.clipper?.selectSavePath()) ?? null;
     if (!outputPath) return;
@@ -295,6 +316,7 @@ export function App() {
           onOpen={openClip}
           onRetry={(id) => void api.retryClip(id).then(() => reload())}
           onSort={setClipSort}
+          onClear={() => void clearClips()}
         />
         <VideoPanel
           focused={focus === "video"}

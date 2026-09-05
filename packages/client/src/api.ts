@@ -58,6 +58,7 @@ export const api = {
   clips: () => json<{ clips: Clip[] }>("/api/clips"),
   deleteClip: (id: string) =>
     json<{ ok: boolean }>(`/api/clips/${id}`, { method: "DELETE" }),
+  clearClips: () => json<{ ok: boolean }>("/api/clips/clear", { method: "POST" }),
   retryClip: (id: string) =>
     json<{ clip: Clip }>(`/api/clips/${id}/retry`, { method: "POST" }),
   clipInSequence: (id: string) =>

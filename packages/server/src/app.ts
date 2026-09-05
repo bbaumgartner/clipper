@@ -441,6 +441,10 @@ export class ClipperApp {
       } else {
         await cutEncode(source.path, clip.start_sec, clip.end_sec, out);
       }
+      if (!this.getClip(id)) {
+        fs.rmSync(out, { force: true });
+        return;
+      }
       const probe = await probeFile(out);
       const thumbs = Array.from({ length: LIST_THUMB_COUNT }, (_, i) =>
         this.clipThumbPath(id, i),
@@ -470,6 +474,7 @@ export class ClipperApp {
       this.ensurePreview("clip", id);
     } catch (err) {
       fs.rmSync(out, { force: true });
+      if (!this.getClip(id)) return;
       this.failClip(id, err instanceof Error ? err.message : String(err));
     }
   }
@@ -481,9 +486,7 @@ export class ClipperApp {
     this.events.emitEvent({ type: "job", clipId: id, status: "failed", message });
   }
 
-  deleteClip(id: string): void {
-    const clip = this.getClip(id);
-    if (!clip) throw Object.assign(new Error("not found"), { statusCode: 404 });
+  private removeClipArtifacts(id: string, clip: ClipRow): void {
     const existing = this.resolveClipFile(clip);
     if (existing) fs.rmSync(existing, { force: true });
     fs.rmSync(this.clipFilePath(id), { force: true });
@@ -493,10 +496,26 @@ export class ClipperApp {
     fs.rmSync(this.clipStripDir(id), { recursive: true, force: true });
     fs.rmSync(this.previewPath("clip", id), { force: true });
     fs.rmSync(`${this.previewPath("clip", id)}.part.mp4`, { force: true });
+  }
+
+  deleteClip(id: string): void {
+    const clip = this.getClip(id);
+    if (!clip) throw Object.assign(new Error("not found"), { statusCode: 404 });
+    this.removeClipArtifacts(id, clip);
     this.db.prepare("DELETE FROM sequence WHERE clip_id = ?").run(id);
     this.db.prepare("DELETE FROM clips WHERE id = ?").run(id);
     this.repackSequence();
     this.events.emitEvent({ type: "sequence", clipIds: this.listSequenceIds() });
+  }
+
+  clearClips(): void {
+    const rows = this.db.prepare("SELECT * FROM clips").all() as ClipRow[];
+    for (const clip of rows) {
+      this.removeClipArtifacts(clip.id, clip);
+    }
+    this.db.prepare("DELETE FROM sequence").run();
+    this.db.prepare("DELETE FROM clips").run();
+    this.events.emitEvent({ type: "sequence", clipIds: [] });
   }
 
   clipInSequence(id: string): boolean {

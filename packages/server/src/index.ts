@@ -123,6 +123,11 @@ export async function startServer(opts: StartServerOptions): Promise<{
 
   fastify.get("/api/clips", async () => ({ clips: app.listClips() }));
 
+  fastify.post("/api/clips/clear", async () => {
+    app.clearClips();
+    return { ok: true };
+  });
+
   fastify.delete("/api/clips/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     try {

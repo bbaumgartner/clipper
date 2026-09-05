@@ -17,6 +17,7 @@ export function ClipPanel(props: {
   onOpen: (id: string) => void;
   onRetry: (id: string) => void;
   onSort: (sort: "date" | "name") => void;
+  onClear: () => void;
 }) {
   const groups = groupClips(props.clips, props.sort);
   return (
@@ -27,6 +28,9 @@ export function ClipPanel(props: {
     >
       <div className="panel-head">
         <h2>Clips</h2>
+        <button type="button" onClick={props.onClear}>
+          Clear
+        </button>
         <select
           value={props.sort}
           onChange={(e) => props.onSort(e.target.value as "date" | "name")}
