@@ -20,6 +20,18 @@ This is also a test bed for state-of-the-art coding models. Everything has been 
 - Overlay player with filmstrip and fast cutter
 - Keyboard-first navigation
 
+## Download
+
+Latest unsigned builds from [GitHub Releases](https://github.com/bbaumgartner/clipper/releases/latest):
+
+- [macOS arm64](https://github.com/bbaumgartner/clipper/releases/download/latest/Clipper-mac-arm64.zip)
+- [Linux x64](https://github.com/bbaumgartner/clipper/releases/download/latest/Clipper-linux-x64.zip)
+- [Windows x64](https://github.com/bbaumgartner/clipper/releases/download/latest/Clipper-win-x64.zip)
+
+Unzip, then run `Clipper.app` (macOS), `Clipper` (Linux), or `Clipper.exe` (Windows).
+
+These builds are unsigned. On macOS, right-click Open or run `xattr -dr com.apple.quarantine Clipper.app`. On Windows, choose More info → Run anyway if SmartScreen appears.
+
 ## Run from source
 
 Needs [Node.js 22](https://nodejs.org/) or newer.

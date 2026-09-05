@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --mac
+          - os: ubuntu-latest
+            args: --linux
+          - os: windows-latest
+            args: --win
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Package
+        run: npm run dist -w @clipper/electron -- ${{ matrix.args }} --config.extraMetadata.version=0.1.${{ github.run_number }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clipper-${{ matrix.os }}
+          path: packages/electron/release/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist-zips
+      - uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: dist-zips/*.zip
+          body: |
+            Clipper `0.1.${{ github.run_number }}` (${{ github.sha }})
+
+            Unzip and run `Clipper.app` (macOS), `Clipper` (Linux), or `Clipper.exe` (Windows).
+
+            Builds are unsigned. On macOS, right-click Open or run `xattr -dr com.apple.quarantine Clipper.app`. On Windows, choose More info → Run anyway if SmartScreen appears.
+          makeLatest: true
+          name: Latest
+          omitBodyDuringUpdate: false
+          replacesArtifacts: true
+          tag: latest
+          token: ${{ secrets.GITHUB_TOKEN }}

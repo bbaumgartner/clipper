@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
-import ffmpegStatic from "ffmpeg-static";
 import {
   FILMSTRIP_FRAME_HEIGHT,
   FILMSTRIP_FRAME_WIDTH,
@@ -12,7 +11,6 @@ import {
 } from "@clipper/shared";
 
 const require = createRequire(import.meta.url);
-const ffprobeStatic = require("ffprobe-static") as { path: string };
 
 export type Probe = {
   duration: number;
@@ -35,10 +33,15 @@ function modulePath(mod: unknown): string {
 }
 
 function ffmpegBin(): string {
-  return modulePath(ffmpegStatic);
+  const fromEnv = process.env.CLIPPER_FFMPEG;
+  if (fromEnv) return fromEnv;
+  return modulePath(require("ffmpeg-static"));
 }
 
 function ffprobeBin(): string {
+  const fromEnv = process.env.CLIPPER_FFPROBE;
+  if (fromEnv) return fromEnv;
+  const ffprobeStatic = require("ffprobe-static") as { path: string };
   return modulePath(ffprobeStatic.path);
 }
 

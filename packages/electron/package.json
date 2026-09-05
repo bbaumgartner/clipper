@@ -2,6 +2,7 @@
   "name": "@clipper/electron",
   "version": "0.1.0",
   "license": "GPL-3.0-only",
+  "description": "Cut source videos into clips and rearrange them into new videos.",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
@@ -9,13 +10,11 @@
     "build:main": "node build.mjs",
     "dev": "npm run build:main && wait-on http-get://127.0.0.1:47281/api/sources http-get://127.0.0.1:5173 && CLIPPER_DEV=1 electron .",
     "build": "npm run build:main",
-    "dist": "electron-builder --mac"
-  },
-  "dependencies": {
-    "@clipper/server": "*"
+    "dist": "electron-builder --publish never"
   },
   "devDependencies": {
-    "electron": "^37.10.3",
+    "@clipper/server": "*",
+    "electron": "37.10.3",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.25.9",
     "typescript": "^5.9.2",
@@ -24,21 +23,51 @@
   "build": {
     "appId": "org.clipper.app",
     "productName": "Clipper",
+    "electronVersion": "37.10.3",
     "copyright": "Copyright © Clipper contributors",
+    "executableName": "Clipper",
+    "asar": true,
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**",
-      "package.json"
+      "package.json",
+      "!**/node_modules/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": ".",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "extraMetadata": {
-      "main": "dist/main.js"
+      "name": "clipper",
+      "main": "dist/main.js",
+      "dependencies": {}
     },
+    "icon": "../../docs/icon.png",
+    "artifactName": "Clipper-${os}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.video",
+      "identity": null,
       "target": [
-        "dmg"
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "AudioVideo",
+      "target": [
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "zip"
       ]
     }
   }

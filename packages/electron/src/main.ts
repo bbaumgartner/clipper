@@ -7,6 +7,16 @@ app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 app.commandLine.appendSwitch("enable-features", "PlatformHEVCDecoderSupport");
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dev = process.env.CLIPPER_DEV === "1" || !app.isPackaged;
+
+function packagedBin(name: string): string {
+  const file = process.platform === "win32" ? `${name}.exe` : name;
+  return path.join(process.resourcesPath, file);
+}
+
+if (app.isPackaged) {
+  process.env.CLIPPER_FFMPEG = packagedBin("ffmpeg");
+  process.env.CLIPPER_FFPROBE = packagedBin("ffprobe");
+}
 let apiPort = Number(process.env.CLIPPER_PORT ?? 47281);
 let mainWindow: BrowserWindow | null = null;
 
@@ -84,7 +94,7 @@ async function createWindow(): Promise<void> {
   if (dev) {
     await mainWindow.loadURL("http://127.0.0.1:5173");
   } else {
-    const index = path.join(here, "../../client/dist/index.html");
+    const index = path.join(here, "renderer/index.html");
     await mainWindow.loadFile(index);
   }
 }
