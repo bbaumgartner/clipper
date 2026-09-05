@@ -52,9 +52,11 @@
     },
     "icon": "../../docs/icon.png",
     "artifactName": "Clipper-${os}-${arch}.${ext}",
+    "afterPack": "after-pack.cjs",
     "mac": {
       "category": "public.app-category.video",
       "identity": null,
+      "gatekeeperAssess": false,
       "target": [
         "zip"
       ]

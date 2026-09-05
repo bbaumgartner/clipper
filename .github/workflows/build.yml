@@ -59,7 +59,7 @@ jobs:
 
             Unzip and run `Clipper.app` (macOS), `Clipper` (Linux), or `Clipper.exe` (Windows).
 
-            Builds are unsigned. On macOS, right-click Open or run `xattr -dr com.apple.quarantine Clipper.app`. On Windows, choose More info → Run anyway if SmartScreen appears.
+            Builds are unsigned. On macOS, Gatekeeper may say the app is damaged — it is not. Right-click Open, or run `xattr -dr com.apple.quarantine Clipper.app` and open it again. On Windows, choose More info → Run anyway if SmartScreen appears.
           makeLatest: true
           name: Latest
           omitBodyDuringUpdate: false

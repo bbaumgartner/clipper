@@ -22,6 +22,8 @@ This is also a test bed for state-of-the-art coding models. Everything has been 
 
 ## Download
 
+[![Build](https://github.com/bbaumgartner/clipper/actions/workflows/build.yml/badge.svg)](https://github.com/bbaumgartner/clipper/actions/workflows/build.yml)
+
 Latest unsigned builds from [GitHub Releases](https://github.com/bbaumgartner/clipper/releases/latest):
 
 - [macOS arm64](https://github.com/bbaumgartner/clipper/releases/download/latest/Clipper-mac-arm64.zip)
@@ -30,7 +32,7 @@ Latest unsigned builds from [GitHub Releases](https://github.com/bbaumgartner/cl
 
 Unzip, then run `Clipper.app` (macOS), `Clipper` (Linux), or `Clipper.exe` (Windows).
 
-These builds are unsigned. On macOS, right-click Open or run `xattr -dr com.apple.quarantine Clipper.app`. On Windows, choose More info → Run anyway if SmartScreen appears.
+These builds are unsigned. On macOS, Gatekeeper may say the app is damaged — it is not. Right-click Open, or run `xattr -dr com.apple.quarantine Clipper.app` and open it again. On Windows, choose More info → Run anyway if SmartScreen appears.
 
 ## Run from source
 
