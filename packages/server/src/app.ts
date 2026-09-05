@@ -33,14 +33,14 @@ import {
   writeConcatList,
 } from "./ffmpeg.js";
 import { countThumbs, filmstripReadyCount } from "./media.js";
-import { SerialQueue } from "./queue.js";
+import { JobQueue } from "./queue.js";
 
 const VIDEO_EXT = new Set([".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi"]);
 
 export class ClipperApp {
   readonly db: SqlDatabase;
   readonly events = new EventBus();
-  readonly queue = new SerialQueue();
+  readonly queue = new JobQueue(2);
   readonly dataDir: string;
   readonly thumbsDir: string;
   readonly clipsDir: string;
