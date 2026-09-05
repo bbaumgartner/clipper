@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Clip, Source } from "@clipper/shared";
+import type { Clip, JobEvent, Source } from "@clipper/shared";
 import { api, subscribeEvents } from "./api";
 import { SourcePanel } from "./components/SourcePanel";
 import { ClipPanel, visibleClips } from "./components/ClipPanel";
@@ -9,13 +9,30 @@ import type { Draft } from "./draft";
 
 type Panel = "source" | "clips" | "video";
 
-function toolbarLabel(clips: Clip[], status: string): string {
+function jobKey(ev: JobEvent): string {
+  const entity = ev.sourceId ? "source" : ev.clipId ? "clip" : "job";
+  const id = ev.sourceId ?? ev.clipId ?? "job";
+  return `${ev.kind ?? "job"}:${entity}:${id}`;
+}
+
+function toolbarLabel(clips: Clip[], jobs: Map<string, string>, extra: string): string {
   const queued = clips.filter((c) => c.status === "pending").length;
-  if (queued > 0) return queued === 1 ? "encoding…" : `encoding ${queued}…`;
-  const n = status.trim().toLowerCase();
-  if (!n || n === "ready" || n === "pending" || n === "running") return "";
-  if (n.endsWith(" ready")) return "";
-  return status;
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  const add = (raw: string) => {
+    const n = raw.trim();
+    if (!n) return;
+    const k = n.toLowerCase();
+    if (k === "ready" || k === "pending" || k === "running") return;
+    if (k.endsWith(" ready")) return;
+    if (seen.has(k)) return;
+    seen.add(k);
+    parts.push(n);
+  };
+  if (queued > 0) add(queued === 1 ? "encoding…" : `encoding ${queued}…`);
+  for (const msg of jobs.values()) add(msg);
+  add(extra);
+  return parts.join(" · ");
 }
 
 export function App() {
@@ -30,6 +47,7 @@ export function App() {
   const [videoSel, setVideoSel] = useState<string[]>([]);
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   const [status, setStatus] = useState("");
+  const [jobs, setJobs] = useState<Map<string, string>>(() => new Map());
   const overlayOpen = overlay !== null;
   const overlayRef = useRef(overlayOpen);
   overlayRef.current = overlayOpen;
@@ -58,9 +76,16 @@ export function App() {
       } else if (ev.type === "sequence") {
         setSequenceIds(ev.clipIds);
       } else if (ev.type === "job") {
-        if (ev.status === "ready") setStatus("");
-        else if (ev.status === "failed") setStatus(ev.message ?? "failed");
-        else if (ev.message) setStatus(ev.message);
+        const key = jobKey(ev);
+        setJobs((prev) => {
+          const next = new Map(prev);
+          if (ev.status === "ready") next.delete(key);
+          else if (ev.status === "failed") next.set(key, ev.message ?? "failed");
+          else if (ev.message) next.set(key, ev.message);
+          else next.delete(key);
+          return next;
+        });
+        if (ev.status === "failed") setStatus(ev.message ?? "failed");
       } else if (ev.type === "export") {
         if (ev.status === "ready") setStatus("");
         else if (ev.status === "failed") setStatus(ev.message ?? "export failed");
@@ -289,13 +314,14 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <h1>Clipper</h1>
-        <span className="status">{toolbarLabel(clips, status)}</span>
+        <span className="status">{toolbarLabel(clips, jobs, status)}</span>
       </header>
       <div className="panels">
         <SourcePanel
           focused={focus === "source"}
           sources={sources}
           selectedId={sourceSel}
+          extractingIds={extractingIds("thumbs", "source", jobs)}
           sort={sourceSort}
           onFocus={() => focusPanel("source")}
           onSelect={(id) => {
@@ -310,6 +336,7 @@ export function App() {
           focused={focus === "clips"}
           clips={clips}
           selectedId={clipSel}
+          extractingIds={extractingIds("thumbs", "clip", jobs)}
           sort={clipSort}
           onFocus={() => focusPanel("clips")}
           onSelect={(id) => {
@@ -352,6 +379,15 @@ export function App() {
       ) : null}
     </div>
   );
+}
+
+function extractingIds(kind: string, entity: "source" | "clip", jobs: Map<string, string>): Set<string> {
+  const prefix = `${kind}:${entity}:`;
+  const ids = new Set<string>();
+  for (const key of jobs.keys()) {
+    if (key.startsWith(prefix)) ids.add(key.slice(prefix.length));
+  }
+  return ids;
 }
 
 function upsert<T>(list: T[], item: T, key: (x: T) => string): T[] {

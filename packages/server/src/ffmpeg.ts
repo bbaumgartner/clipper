@@ -186,6 +186,7 @@ export async function extractThumbs(
   input: string,
   duration: number,
   outputs: string[],
+  onFrame?: (index: number, total: number) => void,
 ): Promise<void> {
   const n = outputs.length;
   const last = duration > 0 ? Math.max(0, duration - 0.04) : 0;
@@ -194,6 +195,7 @@ export async function extractThumbs(
     const out = outputs[i];
     if (!out) continue;
     await extractStill(input, t, out);
+    onFrame?.(i, n);
   }
 }
 

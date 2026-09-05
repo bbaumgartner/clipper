@@ -6,6 +6,7 @@ export function ThumbStrip(props: {
   kind: "source" | "clip";
   id: string;
   count: number;
+  extracting?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -26,7 +27,9 @@ export function ThumbStrip(props: {
   return (
     <div className="thumbs" ref={ref}>
       {props.count <= 0
-        ? Array.from({ length: visible }, (_, i) => <span key={i} />)
+        ? props.extracting
+          ? <span className="thumbs-status">extracting frames…</span>
+          : Array.from({ length: visible }, (_, i) => <span key={i} />)
         : indices.map((thumbIndex) => (
             <img
               key={thumbIndex}

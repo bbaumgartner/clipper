@@ -11,6 +11,7 @@ export function ClipPanel(props: {
   focused: boolean;
   clips: Clip[];
   selectedId: string | null;
+  extractingIds: Set<string>;
   sort: "date" | "name";
   onFocus: () => void;
   onSelect: (id: string) => void;
@@ -70,7 +71,12 @@ export function ClipPanel(props: {
                       </button>
                     ) : null}
                   </div>
-                  <ThumbStrip kind="clip" id={c.id} count={c.thumbCount} />
+                  <ThumbStrip
+                    kind="clip"
+                    id={c.id}
+                    count={c.thumbCount}
+                    extracting={props.extractingIds.has(c.id)}
+                  />
                 </div>
               </div>
             ))}

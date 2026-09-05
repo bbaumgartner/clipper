@@ -11,6 +11,7 @@ export function SourcePanel(props: {
   focused: boolean;
   sources: Source[];
   selectedId: string | null;
+  extractingIds: Set<string>;
   sort: "date" | "name";
   onFocus: () => void;
   onSelect: (id: string) => void;
@@ -52,7 +53,12 @@ export function SourcePanel(props: {
                 <span className="meta">{dur(s.duration)}</span>
                 {s.broken ? <span className="badge">missing</span> : null}
               </div>
-              <ThumbStrip kind="source" id={s.id} count={s.thumbCount} />
+              <ThumbStrip
+                kind="source"
+                id={s.id}
+                count={s.thumbCount}
+                extracting={props.extractingIds.has(s.id)}
+              />
             </div>
           </div>
         ))}

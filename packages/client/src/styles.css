@@ -46,6 +46,13 @@ button.danger { background: #3f1212; border-color: #7f1d1d; }
 .thumbs { display: flex; gap: 2px; height: 40px; width: 100%; }
 .thumbs img, .thumbs span { flex: 1; min-width: 0; height: 40px; object-fit: cover; background: #000; }
 .thumbs span { background: #111; }
+.thumbs-status {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  background: #111;
+  padding: 0 8px;
+}
 .badge { font-size: 10px; color: var(--warn); }
 
 .overlay { position: fixed; inset: 0; background: #000d; z-index: 20; display: flex; flex-direction: column; }

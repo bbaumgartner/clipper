@@ -65,8 +65,11 @@ export type Filmstrip = {
   frames: FilmstripFrame[];
 };
 
+export type JobKind = "preview" | "thumbs" | "cut";
+
 export type JobEvent = {
   type: "job";
+  kind?: JobKind;
   clipId?: string;
   sourceId?: string;
   status: "pending" | "running" | "ready" | "failed";

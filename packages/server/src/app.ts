@@ -169,32 +169,29 @@ export class ClipperApp {
     this.previewErrors.delete(key);
     this.events.emitEvent({
       type: "job",
+      kind: "preview",
       sourceId: kind === "source" ? id : undefined,
       clipId: kind === "clip" ? id : undefined,
       status: "running",
       message: "encoding preview",
     });
     void this.queue.enqueue(async () => {
+      let failed = false;
       try {
         const current = this.originalMedia(kind, id);
         if (!current) return;
         if (isHtml5Safe(current.path, current.videoCodec, current.audioCodec)) return;
         if (this.previewReady(kind, id)) return;
         await encodePreview(current.path, this.previewPath(kind, id), Boolean(current.audioCodec));
-        this.events.emitEvent({
-          type: "job",
-          sourceId: kind === "source" ? id : undefined,
-          clipId: kind === "clip" ? id : undefined,
-          status: "ready",
-          message: "preview ready",
-        });
       } catch (err) {
+        failed = true;
         const message = err instanceof Error ? err.message : String(err);
         this.previewErrors.set(key, message);
         fs.rmSync(this.previewPath(kind, id), { force: true });
         fs.rmSync(`${this.previewPath(kind, id)}.part.mp4`, { force: true });
         this.events.emitEvent({
           type: "job",
+          kind: "preview",
           sourceId: kind === "source" ? id : undefined,
           clipId: kind === "clip" ? id : undefined,
           status: "failed",
@@ -202,6 +199,16 @@ export class ClipperApp {
         });
       } finally {
         this.previewJobs.delete(key);
+        if (!failed) {
+          this.events.emitEvent({
+            type: "job",
+            kind: "preview",
+            sourceId: kind === "source" ? id : undefined,
+            clipId: kind === "clip" ? id : undefined,
+            status: "ready",
+            message: "preview ready",
+          });
+        }
       }
     });
   }
@@ -341,10 +348,11 @@ export class ClipperApp {
     input: string,
     duration: number,
     outputs: string[],
+    onFrame?: (index: number, total: number) => void,
   ): Promise<void> {
     const parts = outputs.map((p) => this.thumbPartPath(p));
     try {
-      await extractThumbs(input, duration, parts);
+      await extractThumbs(input, duration, parts, onFrame);
       if (parts.some((p) => !fs.existsSync(p))) {
         throw new Error("incomplete thumb extract");
       }
@@ -381,6 +389,7 @@ export class ClipperApp {
     const prefix = kind === "source" ? `source-${id}` : `clip-${id}`;
     if (countThumbs(this.thumbsDir, prefix, LIST_THUMB_MAX) >= LIST_THUMB_MAX) return;
     this.listThumbJobs.add(key);
+    this.emitThumbsJob(kind, id, "running", 0, "extracting frames…");
     void this.queue.enqueue(async () => {
       try {
         const still = kind === "source" ? `source-${id}` : `clip-${id}`;
@@ -388,14 +397,42 @@ export class ClipperApp {
         await this.rebuildListThumbs(kind, id);
       } finally {
         this.listThumbJobs.delete(key);
+        this.emitThumbsJob(kind, id, "ready", 1, "frames ready");
       }
     });
   }
 
+  private emitThumbsJob(
+    kind: "source" | "clip",
+    id: string,
+    status: "running" | "ready",
+    progress: number,
+    message: string,
+  ): void {
+    this.events.emitEvent({
+      type: "job",
+      kind: "thumbs",
+      sourceId: kind === "source" ? id : undefined,
+      clipId: kind === "clip" ? id : undefined,
+      status,
+      progress,
+      message,
+    });
+  }
+
   private async rebuildListThumbs(kind: "source" | "clip", id: string): Promise<void> {
+    const onFrame = (index: number, total: number) => {
+      this.emitThumbsJob(
+        kind,
+        id,
+        "running",
+        (index + 1) / total,
+        `extracting frames ${index + 1}/${total}`,
+      );
+    };
     if (kind === "source") {
       const row = this.getSource(id);
-      if (row) await this.buildSourceThumbs(row);
+      if (row) await this.buildSourceThumbs(row, onFrame);
       return;
     }
     const clip = this.getClip(id);
@@ -404,7 +441,7 @@ export class ClipperApp {
     if (!file || clip.status !== "ready") return;
     const outputs = Array.from({ length: LIST_THUMB_MAX }, (_, i) => this.clipThumbPath(id, i));
     try {
-      await this.extractThumbsStaged(file, clip.duration, outputs);
+      await this.extractThumbsStaged(file, clip.duration, outputs, onFrame);
       const next = this.getClip(id);
       if (next) this.events.emitEvent({ type: "clip", clip: this.clipDto(next) });
     } catch {
@@ -412,12 +449,15 @@ export class ClipperApp {
     }
   }
 
-  private async buildSourceThumbs(row: SourceRow): Promise<void> {
+  private async buildSourceThumbs(
+    row: SourceRow,
+    onFrame?: (index: number, total: number) => void,
+  ): Promise<void> {
     const outputs = Array.from({ length: LIST_THUMB_MAX }, (_, i) =>
       this.sourceThumbPath(row.id, i),
     );
     try {
-      await this.extractThumbsStaged(row.path, row.duration, outputs);
+      await this.extractThumbsStaged(row.path, row.duration, outputs, onFrame);
       const source = this.getSource(row.id);
       if (source) this.events.emitEvent({ type: "source", source: this.sourceDto(source) });
     } catch {
@@ -477,7 +517,7 @@ export class ClipperApp {
       const dto = this.clipDto(clip);
       created.push(dto);
       this.events.emitEvent({ type: "clip", clip: dto });
-      this.events.emitEvent({ type: "job", clipId: id, status: "pending" });
+      this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "pending" });
       void this.queue.enqueue(() => this.runCut(id));
     }
     return created;
@@ -496,7 +536,7 @@ export class ClipperApp {
     if (!next) throw new Error("missing");
     const dto = this.clipDto(next);
     this.events.emitEvent({ type: "clip", clip: dto });
-    this.events.emitEvent({ type: "job", clipId: id, status: "pending" });
+    this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "pending" });
     void this.queue.enqueue(() => this.runCut(id));
     return dto;
   }
@@ -510,7 +550,7 @@ export class ClipperApp {
       return;
     }
     this.db.prepare("UPDATE clips SET status = 'pending', error = NULL WHERE id = ?").run(id);
-    this.events.emitEvent({ type: "job", clipId: id, status: "running", progress: 0 });
+    this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "running", progress: 0 });
     const out = this.clipFilePath(id);
     try {
       const kStart = await keyframesNear(source.path, clip.start_sec);
@@ -552,7 +592,7 @@ export class ClipperApp {
         );
       const ready = this.getClip(id);
       if (ready) this.events.emitEvent({ type: "clip", clip: this.clipDto(ready) });
-      this.events.emitEvent({ type: "job", clipId: id, status: "ready", progress: 1 });
+      this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "ready", progress: 1 });
       this.ensurePreview("clip", id);
     } catch (err) {
       fs.rmSync(out, { force: true });
@@ -565,7 +605,7 @@ export class ClipperApp {
     this.db.prepare("UPDATE clips SET status = 'failed', error = ? WHERE id = ?").run(message, id);
     const clip = this.getClip(id);
     if (clip) this.events.emitEvent({ type: "clip", clip: this.clipDto(clip) });
-    this.events.emitEvent({ type: "job", clipId: id, status: "failed", message });
+    this.events.emitEvent({ type: "job", kind: "cut", clipId: id, status: "failed", message });
   }
 
   private removeClipArtifacts(id: string, clip: ClipRow): void {
