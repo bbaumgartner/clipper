@@ -26,7 +26,9 @@ export function SourcePanel(props: {
     >
       <div className="panel-head">
         <h2>Source</h2>
-        <button onClick={props.onAdd}>Add</button>
+        <button type="button" className="primary" onClick={props.onAdd}>
+          Add
+        </button>
         <select
           value={props.sort}
           onChange={(e) => props.onSort(e.target.value as "date" | "name")}
