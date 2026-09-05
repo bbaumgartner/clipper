@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Clipper">
+  <rect width="1280" height="640" fill="#0e0e0e"/>
+  <image href="logo.svg" x="80" y="128" width="384" height="384"/>
+  <text x="500" y="300" fill="#e8e8e8" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="92" font-weight="600" letter-spacing="1">Clipper</text>
+  <text x="500" y="372" fill="#8a8a8a" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="32">Cut large videos locally. Keyboard-first.</text>
+</svg>

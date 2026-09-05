@@ -1,22 +1,46 @@
+<p align="center">
+  <img src="docs/logo.png" width="128" height="128" alt="Clipper">
+</p>
+
 # Clipper
 
-Local three-panel video editor for cutting large files quickly. Keyboard-first, minimal UI. ffmpeg does all media work; videos are never loaded whole into memory.
+![Clipper three-panel editor with Source, Clips, and Video](docs/screenshot.png)
 
-**Source → Clips → Video → Export.** Mark drafts in an overlay, apply to encode clips, arrange a sequence, export one file.
+With Clipper you can cut source videos into video clips and then rearrange these clips into new videos.
 
-macOS desktop app (Electron). GPL-3.0 — commercial use is allowed if derivatives stay GPL and source is provided.
+## Why Clipper
 
-## Architecture
+Open-Source, Keyboard-first, minimal UI. Get things done fast.
 
-Electron window (web client) talks to a local REST server on `127.0.0.1`. The server owns the filesystem, SQLite state, and a serial ffmpeg queue.
+This is also a test bed for state-of-the-art coding models. Everything has been generated, nothing has been reviewed, there are no unit tests, it's a yolo project and it works, for me.
 
+## Features
+
+- Three panels: Source, Clips, Video
+- Overlay player with filmstrip and fast cutter
+- Keyboard-first navigation
+
+## Run from source
+
+Needs [Node.js 22](https://nodejs.org/) or newer.
+
+```bash
+npm install
+npm run dev
 ```
-Renderer  →  Fastify (127.0.0.1)  →  ffmpeg / SQLite
-```
 
-## Design
+That opens the Electron app.
 
-Three equal columns. Overlay player: video on top, filmstrip below (blue playhead, yellow draft marks). Cuts are drafts until Apply / Cmd+Enter / close; Esc discards.
+## Use it
+
+- Add a source video
+- Play/open the source video in the overlay player
+- Set your cut marks
+- Apply the cuts to generate clips -> they are added to the middle panel
+- Move the clips to the rightmost video panel and arrange them in any order
+- Export the movie
+
+## Shortcuts
 
 | Key | Panels | Overlay |
 | --- | --- | --- |
@@ -25,26 +49,17 @@ Three equal columns. Overlay player: video on top, filmstrip below (blue playhea
 | Enter | Open player | Cut (source) |
 | Cmd+Enter | — | Apply drafts (source) |
 | Space | — | Play / pause |
-| ← → | Clips: send to video | Seek ±0.5s (Shift: 0.1× speed, ±0.05s) |
+| ← → | Clips: send to video | Seek ±0.5s |
+| Shift | | play speed 0.1× |
+| Shift← Shift→ | | Seek ±0.05s |
 | + | Source: add videos | — |
 | e | Video: export | — |
 | Delete | Remove row / clip / sequence item | — |
 | Esc | — | Close (source: discard) |
 | Alt+↑↓ | Reorder sequence | — |
 
-## Use
-
-Needs Node.js 22 or newer (current LTS). ffmpeg binaries are bundled via npm.
-
-```bash
-npm install
-npm run dev
-```
-
-Opens the Electron app. Add video files, Enter to play, Enter to mark cuts, Apply or Cmd+Enter to commit. Right arrow sends a clip to the video panel. Export concatenates the sequence (waits for encodes to finish).
-
-State (sources, clips, sequence) is restored from SQLite in the app data dir. There are no named project files in v1.
-
 ## License
 
-[GPL-3.0](LICENSE)
+[GPL-3.0](LICENSE).
+
+Clipper bundles ffmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) (GPL).

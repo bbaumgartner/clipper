@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Clipper">
+  <defs>
+    <clipPath id="icon">
+      <rect width="1024" height="1024" rx="230"/>
+    </clipPath>
+    <mask id="strip">
+      <rect x="64" y="388" width="400" height="228" rx="22" fill="#fff"/>
+      <g fill="#000">
+        <circle cx="100" cy="412" r="11"/><circle cx="144" cy="412" r="11"/><circle cx="188" cy="412" r="11"/><circle cx="232" cy="412" r="11"/><circle cx="276" cy="412" r="11"/><circle cx="320" cy="412" r="11"/><circle cx="364" cy="412" r="11"/><circle cx="408" cy="412" r="11"/>
+        <circle cx="100" cy="592" r="11"/><circle cx="144" cy="592" r="11"/><circle cx="188" cy="592" r="11"/><circle cx="232" cy="592" r="11"/><circle cx="276" cy="592" r="11"/><circle cx="320" cy="592" r="11"/><circle cx="364" cy="592" r="11"/><circle cx="408" cy="592" r="11"/>
+      </g>
+    </mask>
+    <mask id="c1">
+      <rect x="520" y="388" width="104" height="228" rx="18" fill="#fff"/>
+      <g fill="#000">
+        <circle cx="548" cy="412" r="10"/><circle cx="596" cy="412" r="10"/>
+        <circle cx="548" cy="592" r="10"/><circle cx="596" cy="592" r="10"/>
+      </g>
+    </mask>
+    <mask id="c2">
+      <rect x="644" y="428" width="104" height="228" rx="18" fill="#fff"/>
+      <g fill="#000">
+        <circle cx="672" cy="452" r="10"/><circle cx="720" cy="452" r="10"/>
+        <circle cx="672" cy="632" r="10"/><circle cx="720" cy="632" r="10"/>
+      </g>
+    </mask>
+    <mask id="c3">
+      <rect x="768" y="476" width="104" height="228" rx="18" fill="#fff"/>
+      <g fill="#000">
+        <circle cx="796" cy="500" r="10"/><circle cx="844" cy="500" r="10"/>
+        <circle cx="796" cy="680" r="10"/><circle cx="844" cy="680" r="10"/>
+      </g>
+    </mask>
+  </defs>
+
+  <g clip-path="url(#icon)">
+    <rect width="1024" height="1024" fill="#0e0e0e"/>
+
+    <g mask="url(#strip)">
+      <rect x="64" y="388" width="400" height="228" fill="#e8e8e8"/>
+      <rect x="108" y="434" width="90" height="136" rx="8" fill="#2a2a2a"/>
+      <rect x="218" y="434" width="90" height="136" rx="8" fill="#2a2a2a"/>
+      <rect x="328" y="434" width="90" height="136" rx="8" fill="#2a2a2a"/>
+    </g>
+
+    <g mask="url(#c1)">
+      <rect x="520" y="388" width="104" height="228" fill="#e8e8e8"/>
+      <rect x="544" y="438" width="56" height="128" rx="6" fill="#2a2a2a"/>
+    </g>
+    <g mask="url(#c2)">
+      <rect x="644" y="428" width="104" height="228" fill="#e8e8e8"/>
+      <rect x="668" y="478" width="56" height="128" rx="6" fill="#2a2a2a"/>
+    </g>
+    <g mask="url(#c3)">
+      <rect x="768" y="476" width="104" height="228" fill="#e8e8e8"/>
+      <rect x="792" y="526" width="56" height="128" rx="6" fill="#2a2a2a"/>
+    </g>
+
+    <g transform="translate(492 490) rotate(-6)">
+      <g transform="rotate(-25)">
+        <line x1="0" y1="-320" x2="0" y2="8" stroke="#d8d8d8" stroke-width="36" stroke-linecap="round"/>
+        <path d="M0 0 L0 128 A74 74 0 0 1 0 276 A74 74 0 0 1 0 128" fill="none" stroke="#eab308" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <g transform="rotate(25)">
+        <line x1="0" y1="-320" x2="0" y2="8" stroke="#c4c4c4" stroke-width="36" stroke-linecap="round"/>
+        <path d="M0 0 L0 128 A74 74 0 0 1 0 276 A74 74 0 0 1 0 128" fill="none" stroke="#eab308" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <circle r="26" fill="#3b82f6"/>
+    </g>
+  </g>
+</svg>
