@@ -27,6 +27,15 @@ function layoutFrames(
   });
 }
 
+function secondsToPrevCut(currentTime: number, marks: number[]): number {
+  const prev = Math.max(0, ...[0, ...marks].filter((m) => m < currentTime));
+  return Math.max(0, currentTime - prev);
+}
+
+function formatSeconds(sec: number): string {
+  return `${sec.toFixed(1)}s`;
+}
+
 function xAtTime(t: number, items: LaidOut[]): number {
   if (items.length === 0) return 0;
   const centers = items.map((it) => ({ t: it.time, x: it.x + it.width / 2 }));
@@ -63,6 +72,7 @@ export function FilmstripView(props: {
   const totalW = Math.max(items.length * FRAME_W, 1);
   const playhead = xAtTime(props.currentTime, items);
   const canCut = props.onCut != null;
+  const gapSec = secondsToPrevCut(props.currentTime, props.marks ?? []);
 
   useEffect(() => {
     const el = scroller.current;
@@ -98,18 +108,23 @@ export function FilmstripView(props: {
         <div className="playhead" style={{ left: playhead }}>
           <div className="playhead-line" />
           {canCut ? (
-            <button
-              type="button"
-              className="playhead-cut"
-              data-testid="cut"
-              title="Cut at playhead"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onCut?.();
-              }}
-            >
-              Cut
-            </button>
+            <div className="playhead-foot">
+              <span className="playhead-gap" data-testid="cut-gap">
+                {formatSeconds(gapSec)}
+              </span>
+              <button
+                type="button"
+                className="playhead-cut"
+                data-testid="cut"
+                title="Cut at playhead"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onCut?.();
+                }}
+              >
+                Cut
+              </button>
+            </div>
           ) : null}
         </div>
       </div>
