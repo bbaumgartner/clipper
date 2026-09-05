@@ -26,6 +26,7 @@ Three equal columns. Overlay player: video on top, filmstrip below (blue playhea
 | Cmd+Enter | — | Apply drafts (source) |
 | Space | — | Play / pause |
 | ← → | Clips: send to video | Seek ±0.5s (Shift ±5s) |
+| + | Source: add videos | — |
 | Delete | Remove row / clip / sequence item | — |
 | Esc | — | Close (source: discard) |
 | Alt+↑↓ | Reorder sequence | — |

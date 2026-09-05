@@ -276,6 +276,9 @@ export function App() {
       } else if (e.key === "ArrowRight" && focus === "clips") {
         e.preventDefault();
         void sendToVideo();
+      } else if (e.key === "+" && focus === "source") {
+        e.preventDefault();
+        void addFiles();
       }
     };
     window.addEventListener("keydown", onKey);
