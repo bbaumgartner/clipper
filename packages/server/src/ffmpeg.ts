@@ -3,6 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import ffmpegStatic from "ffmpeg-static";
+import {
+  FILMSTRIP_FRAME_HEIGHT,
+  FILMSTRIP_FRAME_WIDTH,
+  filmstripExtractOrder,
+  filmstripFrameFile,
+  filmstripFrameTime,
+} from "@clipper/shared";
 
 const require = createRequire(import.meta.url);
 const ffprobeStatic = require("ffprobe-static") as { path: string };
@@ -156,7 +163,7 @@ export function onKeyframe(t: number, keyframes: number[], fps: number): boolean
 const SCALE =
   "scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2,setsar=1";
 const STRIP_SCALE =
-  "scale=96:54:force_original_aspect_ratio=decrease,pad=96:54:(ow-iw)/2:(oh-ih)/2,setsar=1";
+  `scale=${FILMSTRIP_FRAME_WIDTH}:${FILMSTRIP_FRAME_HEIGHT}:force_original_aspect_ratio=decrease,pad=${FILMSTRIP_FRAME_WIDTH}:${FILMSTRIP_FRAME_HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1`;
 
 export async function extractStill(
   input: string,
@@ -204,13 +211,18 @@ export async function extractFilmstrip(
   duration: number,
   count: number,
   dir: string,
-  onFrame?: (index: number) => void,
+  onFrame?: (index: number, readyCount: number) => void,
+  timeOffset = 0,
 ): Promise<void> {
-  for (let i = 0; i < count; i++) {
-    const t = duration * ((i + 0.5) / count);
-    const out = `${dir}/frame_${String(i + 1).padStart(3, "0")}.jpg`;
-    await extractStill(input, t, out, true);
-    onFrame?.(i);
+  let ready = 0;
+  for (const i of filmstripExtractOrder(count)) {
+    const out = `${dir}/${filmstripFrameFile(i)}`;
+    if (!fs.existsSync(out)) {
+      const t = timeOffset + filmstripFrameTime(i, count, duration);
+      await extractStill(input, t, out, true);
+    }
+    ready += 1;
+    onFrame?.(i, ready);
   }
 }
 

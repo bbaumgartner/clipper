@@ -2,8 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  FILMSTRIP_MAX_FRAMES,
+  FILMSTRIP_FRAME_HEIGHT,
+  FILMSTRIP_FRAME_WIDTH,
   LIST_THUMB_MAX,
+  filmstripFineCount,
+  filmstripFrameFile,
+  filmstripFrameTime,
   isHtml5Safe,
   type Clip,
   type Filmstrip,
@@ -32,7 +36,7 @@ import {
   probeFile,
   writeConcatList,
 } from "./ffmpeg.js";
-import { countThumbs, filmstripReadyCount } from "./media.js";
+import { countThumbs, resetStripDir, stripMetaCurrent, writeStripMeta } from "./media.js";
 import { JobQueue } from "./queue.js";
 
 const VIDEO_EXT = new Set([".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi"]);
@@ -693,8 +697,7 @@ export class ClipperApp {
   }
 
   filmstripCount(duration: number): number {
-    if (duration <= 0) return 1;
-    return Math.min(FILMSTRIP_MAX_FRAMES, Math.max(8, Math.round(Math.min(duration, FILMSTRIP_MAX_FRAMES))));
+    return filmstripFineCount(duration);
   }
 
   getFilmstrip(kind: "source" | "clip", id: string): Filmstrip {
@@ -702,14 +705,13 @@ export class ClipperApp {
       kind === "source" ? this.getSource(id)?.duration ?? 0 : this.getClip(id)?.duration ?? 0;
     const count = this.filmstripCount(duration);
     const dir = kind === "source" ? this.sourceStripDir(id) : this.clipStripDir(id);
-    const readyCount = filmstripReadyCount(dir, count);
+    const valid = stripMetaCurrent(dir, count);
     const frames = Array.from({ length: count }, (_, index) => ({
       index,
-      time: duration * ((index + 0.5) / count),
-      ready: fs.existsSync(
-        path.join(dir, `frame_${String(index + 1).padStart(3, "0")}.jpg`),
-      ),
+      time: filmstripFrameTime(index, count, duration),
+      ready: valid && fs.existsSync(path.join(dir, filmstripFrameFile(index))),
     }));
+    const readyCount = valid ? frames.reduce((n, f) => n + (f.ready ? 1 : 0), 0) : 0;
     return { kind, id, duration, count, readyCount, frames };
   }
 
@@ -753,7 +755,13 @@ export class ClipperApp {
     if (!input) return;
     const count = this.filmstripCount(duration);
     const dir = kind === "source" ? this.sourceStripDir(id) : this.clipStripDir(id);
-    fs.mkdirSync(dir, { recursive: true });
+    if (!stripMetaCurrent(dir, count)) resetStripDir(dir);
+    else fs.mkdirSync(dir, { recursive: true });
+    writeStripMeta(dir, {
+      count,
+      width: FILMSTRIP_FRAME_WIDTH,
+      height: FILMSTRIP_FRAME_HEIGHT,
+    });
     if (kind === "clip") {
       const clip = this.getClip(id);
       if (clip && !(clip.status === "ready" && this.resolveClipFile(clip))) {
@@ -761,14 +769,13 @@ export class ClipperApp {
         return;
       }
     }
-    await extractFilmstrip(input, duration, count, dir, () => {
-      const ready = this.getFilmstrip(kind, id);
+    await extractFilmstrip(input, duration, count, dir, (_index, readyCount) => {
       this.events.emitEvent({
         type: "filmstrip",
         kind,
         id,
-        readyCount: ready.readyCount,
-        count: ready.count,
+        readyCount,
+        count,
       });
     });
     const ready = this.getFilmstrip(kind, id);
@@ -791,19 +798,22 @@ export class ClipperApp {
     id: string,
   ): Promise<void> {
     const duration = Math.max(end - start, 0.04);
-    const { extractStill } = await import("./ffmpeg.js");
-    for (let i = 0; i < count; i++) {
-      const t = start + duration * ((i + 0.5) / count);
-      const out = path.join(dir, `frame_${String(i + 1).padStart(3, "0")}.jpg`);
-      await extractStill(input, t, out, true);
-      this.events.emitEvent({
-        type: "filmstrip",
-        kind,
-        id,
-        readyCount: i + 1,
-        count,
-      });
-    }
+    await extractFilmstrip(
+      input,
+      duration,
+      count,
+      dir,
+      (_index, readyCount) => {
+        this.events.emitEvent({
+          type: "filmstrip",
+          kind,
+          id,
+          readyCount,
+          count,
+        });
+      },
+      start,
+    );
   }
 
   async exportSequence(outputPath: string): Promise<string> {

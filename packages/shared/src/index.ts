@@ -146,8 +146,17 @@ export function isHtml5Safe(filePath: string, videoCodec: string, audioCodec: st
 
 export const CUT_EPSILON_SEC = 0.05;
 export const SEEK_STEP_SEC = 0.5;
-export const SEEK_JUMP_SEC = 5;
-export const FILMSTRIP_MAX_FRAMES = 120;
+export const SEEK_FINE_SEC = SEEK_STEP_SEC / 10;
+export const PLAYBACK_FINE_RATE = 0.1;
+export const FILMSTRIP_NORMAL_INTERVAL_SEC = 10;
+export const FILMSTRIP_FINE_INTERVAL_SEC = 2;
+export const FILMSTRIP_FINE_STEP = Math.round(
+  FILMSTRIP_NORMAL_INTERVAL_SEC / FILMSTRIP_FINE_INTERVAL_SEC,
+);
+export const FILMSTRIP_MAG_RADIUS_SEC = 10;
+export const FILMSTRIP_FRAME_PAD = 5;
+export const FILMSTRIP_FRAME_WIDTH = 192;
+export const FILMSTRIP_FRAME_HEIGHT = 108;
 export const LIST_THUMB_MIN = 5;
 export const LIST_THUMB_MAX = 20;
 export const LIST_THUMB_WIDTH = 72;
@@ -171,4 +180,56 @@ export function listThumbIndices(visible: number, stored: number): number[] {
   if (v === 1 || n === 1) return [0];
   if (v >= n) return Array.from({ length: n }, (_, i) => i);
   return Array.from({ length: v }, (_, i) => Math.round((i * (n - 1)) / (v - 1)));
+}
+
+export function filmstripCoarseCount(duration: number): number {
+  if (!(duration > 0)) return 1;
+  return Math.max(1, Math.round(duration / FILMSTRIP_NORMAL_INTERVAL_SEC));
+}
+
+export function filmstripFineCount(duration: number): number {
+  return filmstripCoarseCount(duration) * FILMSTRIP_FINE_STEP;
+}
+
+export function filmstripFrameTime(index: number, count: number, duration: number): number {
+  if (count <= 0) return 0;
+  const last = duration > 0 ? Math.max(0, duration - 0.04) : 0;
+  return Math.min(duration * ((index + 0.5) / count), last);
+}
+
+export function filmstripFrameFile(index: number): string {
+  return `frame_${String(index + 1).padStart(FILMSTRIP_FRAME_PAD, "0")}.jpg`;
+}
+
+/** Coarse (10s) frames first so the normal strip can appear before the 2s fill-in. */
+export function filmstripExtractOrder(count: number): number[] {
+  const n = Math.max(0, Math.floor(count));
+  const first: number[] = [];
+  const rest: number[] = [];
+  for (let i = 0; i < n; i++) {
+    (i % FILMSTRIP_FINE_STEP === 0 ? first : rest).push(i);
+  }
+  return first.concat(rest);
+}
+
+/** Normal: every 10s frame. Shift: also every 2s frame inside the magnify radius. */
+export function filmstripVisibleIndices(
+  count: number,
+  duration: number,
+  currentTime: number,
+  magnify: boolean,
+  radiusSec = FILMSTRIP_MAG_RADIUS_SEC,
+): number[] {
+  const n = Math.max(0, Math.floor(count));
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (i % FILMSTRIP_FINE_STEP === 0) {
+      out.push(i);
+      continue;
+    }
+    if (!magnify) continue;
+    const t = filmstripFrameTime(i, n, duration);
+    if (Math.abs(t - currentTime) <= radiusSec) out.push(i);
+  }
+  return out;
 }

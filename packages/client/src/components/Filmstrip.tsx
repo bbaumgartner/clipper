@@ -1,8 +1,50 @@
 import { useEffect, useRef } from "react";
-import type { Filmstrip } from "@clipper/shared";
+import { FILMSTRIP_FRAME_WIDTH, filmstripVisibleIndices, type Filmstrip } from "@clipper/shared";
 import { stripFrameUrl } from "../api";
 
-const FRAME_W = 96;
+const FRAME_W = FILMSTRIP_FRAME_WIDTH;
+
+type LaidOut = { index: number; time: number; x: number; width: number; ready: boolean };
+
+function layoutFrames(
+  strip: Filmstrip | null,
+  duration: number,
+  currentTime: number,
+  magnify: boolean,
+): LaidOut[] {
+  const count = strip?.count ?? 0;
+  if (count <= 0) return [];
+  const indices = filmstripVisibleIndices(count, duration, currentTime, magnify);
+  return indices.map((index, i) => {
+    const frame = strip?.frames[index];
+    return {
+      index,
+      time: frame?.time ?? 0,
+      x: i * FRAME_W,
+      width: FRAME_W,
+      ready: frame?.ready ?? false,
+    };
+  });
+}
+
+function xAtTime(t: number, items: LaidOut[]): number {
+  if (items.length === 0) return 0;
+  const centers = items.map((it) => ({ t: it.time, x: it.x + it.width / 2 }));
+  const first = centers[0];
+  const last = centers[centers.length - 1];
+  if (!first || !last) return 0;
+  if (t <= first.t) return first.x;
+  if (t >= last.t) return last.x;
+  for (let i = 1; i < centers.length; i++) {
+    const b = centers[i];
+    const a = centers[i - 1];
+    if (!a || !b || t > b.t) continue;
+    const span = b.t - a.t;
+    const u = span > 0 ? (t - a.t) / span : 0;
+    return a.x + u * (b.x - a.x);
+  }
+  return last.x;
+}
 
 export function FilmstripView(props: {
   kind: "source" | "clip";
@@ -10,13 +52,15 @@ export function FilmstripView(props: {
   strip: Filmstrip | null;
   currentTime: number;
   duration: number;
+  magnify?: boolean;
   marks?: number[];
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const duration = props.duration || props.strip?.duration || 1;
-  const count = props.strip?.count ?? 0;
-  const totalW = Math.max(count * FRAME_W, 1);
-  const playhead = (props.currentTime / duration) * totalW;
+  const magnify = props.magnify === true;
+  const items = layoutFrames(props.strip, duration, props.currentTime, magnify);
+  const totalW = Math.max(items.length * FRAME_W, 1);
+  const playhead = xAtTime(props.currentTime, items);
 
   useEffect(() => {
     const el = scroller.current;
@@ -26,13 +70,17 @@ export function FilmstripView(props: {
   }, [playhead]);
 
   return (
-    <div className="filmstrip-wrap" ref={scroller}>
+    <div className={`filmstrip-wrap${magnify ? " magnify" : ""}`} ref={scroller}>
       <div className="filmstrip" style={{ width: totalW }}>
-        {Array.from({ length: count }, (_, i) =>
-          props.strip?.frames[i]?.ready ? (
-            <img key={i} src={stripFrameUrl(props.kind, props.id, i)} alt="" />
+        {items.map((item) =>
+          item.ready ? (
+            <img
+              key={item.index}
+              src={stripFrameUrl(props.kind, props.id, item.index)}
+              alt=""
+            />
           ) : (
-            <div key={i} className="slot" />
+            <div key={item.index} className="slot" />
           ),
         )}
         <div className="mark blue" style={{ left: playhead }} />
@@ -40,7 +88,7 @@ export function FilmstripView(props: {
           <div
             key={t}
             className="mark yellow"
-            style={{ left: (t / duration) * totalW }}
+            style={{ left: xAtTime(t, items) }}
           />
         ))}
       </div>

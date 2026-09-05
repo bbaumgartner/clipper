@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  SEEK_JUMP_SEC,
+  PLAYBACK_FINE_RATE,
+  SEEK_FINE_SEC,
   SEEK_STEP_SEC,
   isHtml5Safe,
   type Clip,
@@ -57,8 +58,16 @@ export function OverlayPlayer(props: {
   const [strip, setStrip] = useState<Filmstrip | null>(null);
   const [playSrc, setPlaySrc] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [magnify, setMagnify] = useState(false);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  const shiftHeldRef = useRef(false);
+
+  function applyPlaybackRate() {
+    const v = videoRef.current;
+    if (!v) return;
+    v.playbackRate = shiftHeldRef.current ? PLAYBACK_FINE_RATE : 1;
+  }
 
   const item = resolveItem(props, index);
   const isCut = props.overlay.mode === "source";
@@ -106,6 +115,7 @@ export function OverlayPlayer(props: {
 
     const tryPlay = () => {
       if (cancelled) return;
+      applyPlaybackRate();
       void v.play().catch((err) => {
         console.warn("clipper: play failed", err);
       });
@@ -113,6 +123,7 @@ export function OverlayPlayer(props: {
 
     const onReady = () => {
       if (cancelled) return;
+      applyPlaybackRate();
       if (item.start > 0.01) {
         const onSeeked = () => tryPlay();
         v.addEventListener("seeked", onSeeked, { once: true });
@@ -149,6 +160,7 @@ export function OverlayPlayer(props: {
     };
 
     v.src = playSrc;
+    applyPlaybackRate();
     v.load();
     v.addEventListener("loadeddata", onReady);
     v.addEventListener("error", startProxy);
@@ -170,18 +182,23 @@ export function OverlayPlayer(props: {
   useEffect(() => {
     if (!item) return;
     let stop = false;
+    let timer = 0;
     const load = async () => {
       const next =
         item.stripKind === "source"
           ? await api.filmstripSource(item.stripId)
           : await api.filmstripClip(item.stripId);
-      if (!stop) setStrip(next);
+      if (stop) return;
+      setStrip(next);
+      if (next.count > 0 && next.readyCount >= next.count) {
+        window.clearInterval(timer);
+      }
     };
     void load();
-    const id = window.setInterval(() => void load(), 800);
+    timer = window.setInterval(() => void load(), 800);
     return () => {
       stop = true;
-      window.clearInterval(id);
+      window.clearInterval(timer);
     };
   }, [item?.stripKind, item?.stripId]);
 
@@ -232,6 +249,13 @@ export function OverlayPlayer(props: {
   const onCloseRef = useRef(props.onClose);
   onCloseRef.current = props.onClose;
 
+  function setShiftHeld(on: boolean) {
+    const changed = shiftHeldRef.current !== on;
+    shiftHeldRef.current = on;
+    if (changed) setMagnify(on);
+    applyPlaybackRate();
+  }
+
   function seek(delta: number) {
     const v = videoRef.current;
     const it = itemRef.current;
@@ -255,6 +279,10 @@ export function OverlayPlayer(props: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setShiftHeld(true);
+        return;
+      }
       const take = () => {
         e.preventDefault();
         e.stopPropagation();
@@ -281,15 +309,25 @@ export function OverlayPlayer(props: {
       }
       if (e.key === "ArrowLeft") {
         take();
-        seek(e.shiftKey ? -SEEK_JUMP_SEC : -SEEK_STEP_SEC);
+        seek(e.shiftKey ? -SEEK_FINE_SEC : -SEEK_STEP_SEC);
       }
       if (e.key === "ArrowRight") {
         take();
-        seek(e.shiftKey ? SEEK_JUMP_SEC : SEEK_STEP_SEC);
+        seek(e.shiftKey ? SEEK_FINE_SEC : SEEK_STEP_SEC);
       }
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setShiftHeld(false);
+    };
+    const onBlur = () => setShiftHeld(false);
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("blur", onBlur);
+    };
   }, []);
 
   if (!item) return null;
@@ -330,6 +368,7 @@ export function OverlayPlayer(props: {
         strip={strip}
         currentTime={item.end != null ? time - item.start : time}
         duration={item.end != null ? item.end - item.start : item.duration}
+        magnify={magnify}
         marks={isCut ? draft.marks : undefined}
       />
     </div>

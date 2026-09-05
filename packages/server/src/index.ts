@@ -3,6 +3,7 @@ import path from "node:path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { z } from "zod";
+import { filmstripFrameFile } from "@clipper/shared";
 import { ClipperApp } from "./app.js";
 import { streamRange } from "./media.js";
 
@@ -100,10 +101,7 @@ export async function startServer(opts: StartServerOptions): Promise<{
 
   fastify.get("/api/sources/:id/filmstrip/:n", async (req, reply) => {
     const { id, n } = req.params as { id: string; n: string };
-    const file = path.join(
-      app.sourceStripDir(id),
-      `frame_${String(Number(n) + 1).padStart(3, "0")}.jpg`,
-    );
+    const file = path.join(app.sourceStripDir(id), filmstripFrameFile(Number(n)));
     if (!fs.existsSync(file)) return reply.code(404).send({ error: "not found" });
     return reply.type("image/jpeg").send(fs.createReadStream(file));
   });
@@ -189,10 +187,7 @@ export async function startServer(opts: StartServerOptions): Promise<{
 
   fastify.get("/api/clips/:id/filmstrip/:n", async (req, reply) => {
     const { id, n } = req.params as { id: string; n: string };
-    const file = path.join(
-      app.clipStripDir(id),
-      `frame_${String(Number(n) + 1).padStart(3, "0")}.jpg`,
-    );
+    const file = path.join(app.clipStripDir(id), filmstripFrameFile(Number(n)));
     if (!fs.existsSync(file)) return reply.code(404).send({ error: "not found" });
     return reply.type("image/jpeg").send(fs.createReadStream(file));
   });

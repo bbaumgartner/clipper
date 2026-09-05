@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { FILMSTRIP_FRAME_HEIGHT, FILMSTRIP_FRAME_WIDTH } from "@clipper/shared";
 
 function mediaType(filePath: string): string {
   switch (path.extname(filePath).toLowerCase()) {
@@ -88,11 +89,43 @@ export function countThumbs(dir: string, prefix: string, max: number): number {
   return n;
 }
 
-export function filmstripReadyCount(dir: string, count: number): number {
-  let n = 0;
-  for (let i = 1; i <= count; i++) {
-    const name = `frame_${String(i).padStart(3, "0")}.jpg`;
-    if (fs.existsSync(path.join(dir, name))) n += 1;
+export type StripMeta = { count: number; width: number; height: number };
+
+export function readStripMeta(dir: string): StripMeta | null {
+  try {
+    const raw = fs.readFileSync(path.join(dir, "strip.json"), "utf8");
+    const json = JSON.parse(raw) as { count?: unknown; width?: unknown; height?: unknown };
+    if (
+      typeof json.count === "number" &&
+      json.count > 0 &&
+      typeof json.width === "number" &&
+      json.width > 0 &&
+      typeof json.height === "number" &&
+      json.height > 0
+    ) {
+      return { count: json.count, width: json.width, height: json.height };
+    }
+  } catch {
+    /* missing or invalid */
   }
-  return n;
+  return null;
+}
+
+export function writeStripMeta(dir: string, meta: StripMeta): void {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "strip.json"), JSON.stringify(meta));
+}
+
+export function stripMetaCurrent(dir: string, count: number): boolean {
+  const meta = readStripMeta(dir);
+  return (
+    meta?.count === count &&
+    meta.width === FILMSTRIP_FRAME_WIDTH &&
+    meta.height === FILMSTRIP_FRAME_HEIGHT
+  );
+}
+
+export function resetStripDir(dir: string): void {
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
 }
