@@ -87,20 +87,31 @@ export function ClipPanel(props: {
   );
 }
 
+function compareBySourcePosition(a: Clip, b: Clip): number {
+  return a.startSec - b.startSec || a.endSec - b.endSec || a.createdAt - b.createdAt;
+}
+
 function groupClips(clips: Clip[], sort: "date" | "name"): [string, Clip[]][] {
-  const sorted = [...clips].sort((a, b) =>
-    sort === "name"
-      ? (a.sourceName ?? "").localeCompare(b.sourceName ?? "") || a.createdAt - b.createdAt
-      : b.createdAt - a.createdAt,
-  );
   const map = new Map<string, Clip[]>();
-  for (const c of sorted) {
+  for (const c of clips) {
     const label = c.sourceName ?? "Orphans";
     const list = map.get(label) ?? [];
     list.push(c);
     map.set(label, list);
   }
-  return [...map.entries()];
+  for (const list of map.values()) {
+    list.sort(compareBySourcePosition);
+  }
+  const groups = [...map.entries()];
+  if (sort === "name") {
+    groups.sort(([a], [b]) => a.localeCompare(b));
+  } else {
+    groups.sort(
+      ([, a], [, b]) =>
+        Math.max(...b.map((c) => c.createdAt)) - Math.max(...a.map((c) => c.createdAt)),
+    );
+  }
+  return groups;
 }
 
 export function visibleClips(clips: Clip[], sort: "date" | "name"): Clip[] {

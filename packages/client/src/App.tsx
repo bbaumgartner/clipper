@@ -243,9 +243,10 @@ export function App() {
   }
 
   function moveClipSel(dir: number) {
-    if (clips.length === 0) return;
-    const i = Math.max(0, clips.findIndex((c) => c.id === clipSel));
-    const next = clips[Math.min(clips.length - 1, Math.max(0, i + dir))];
+    const ordered = visibleClips(clips, clipSort);
+    if (ordered.length === 0) return;
+    const i = Math.max(0, ordered.findIndex((c) => c.id === clipSel));
+    const next = ordered[Math.min(ordered.length - 1, Math.max(0, i + dir))];
     if (next) setClipSel(next.id);
   }
 
