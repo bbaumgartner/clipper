@@ -8,8 +8,11 @@ export type Draft = {
 
 export const emptyDraft = (): Draft => ({ segments: [], marks: [] });
 
-function draftFromMarks(marks: number[]): Draft {
+function draftFromMarks(marks: number[], duration: number): Draft {
   const sorted = [...marks].sort((a, b) => a - b);
+  if (sorted.length === 0) {
+    return { segments: [], marks: [] };
+  }
   const segments: Segment[] = [];
   let prev = 0;
   for (const m of sorted) {
@@ -18,29 +21,27 @@ function draftFromMarks(marks: number[]): Draft {
     }
     prev = m;
   }
+  if (duration - prev >= CUT_EPSILON_SEC) {
+    segments.push({ startSec: prev, endSec: duration });
+  }
   return { segments, marks: sorted };
 }
 
-export function applyDraftCut(draft: Draft, t: number): Draft {
+export function applyDraftCut(draft: Draft, t: number, duration: number): Draft {
   const nearestLeft = Math.max(0, ...[0, ...draft.marks].filter((b) => b < t));
   if (t - nearestLeft < CUT_EPSILON_SEC) return draft;
-  return {
-    segments: [
-      ...draft.segments.filter((s) => s.startSec < nearestLeft),
-      { startSec: nearestLeft, endSec: t },
-    ],
-    marks: [...draft.marks.filter((m) => m <= nearestLeft), t],
-  };
+  if (duration - t < CUT_EPSILON_SEC) return draft;
+  return draftFromMarks([...draft.marks.filter((m) => m <= nearestLeft), t], duration);
 }
 
-export function removeDraftCut(draft: Draft, t: number): Draft {
+export function removeDraftCut(draft: Draft, t: number, duration: number): Draft {
   const remaining = draft.marks.filter((m) => m !== t);
   if (remaining.length === draft.marks.length) return draft;
-  return draftFromMarks(remaining);
+  return draftFromMarks(remaining, duration);
 }
 
-export function removeNearestLeftCut(draft: Draft, t: number): Draft {
+export function removeNearestLeftCut(draft: Draft, t: number, duration: number): Draft {
   const left = draft.marks.filter((m) => m <= t);
   if (left.length === 0) return draft;
-  return removeDraftCut(draft, Math.max(...left));
+  return removeDraftCut(draft, Math.max(...left), duration);
 }

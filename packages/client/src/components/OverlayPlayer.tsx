@@ -274,17 +274,20 @@ export function OverlayPlayer(props: {
 
   function cut() {
     if (!isCutRef.current) return;
-    setDraft((d) => applyDraftCut(d, videoRef.current?.currentTime ?? 0));
+    const duration = itemRef.current?.duration ?? 0;
+    setDraft((d) => applyDraftCut(d, videoRef.current?.currentTime ?? 0, duration));
   }
 
   function deleteCut(t: number) {
     if (!isCutRef.current) return;
-    setDraft((d) => removeDraftCut(d, t));
+    const duration = itemRef.current?.duration ?? 0;
+    setDraft((d) => removeDraftCut(d, t, duration));
   }
 
   function deleteNearestLeftCut() {
     if (!isCutRef.current) return;
-    setDraft((d) => removeNearestLeftCut(d, videoRef.current?.currentTime ?? 0));
+    const duration = itemRef.current?.duration ?? 0;
+    setDraft((d) => removeNearestLeftCut(d, videoRef.current?.currentTime ?? 0, duration));
   }
 
   useEffect(() => {
