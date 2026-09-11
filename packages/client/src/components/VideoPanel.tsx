@@ -18,6 +18,11 @@ export function VideoPanel(props: {
   onClear: () => void;
   onExport: () => void;
 }) {
+  const totalSec = props.sequenceIds.reduce((sum, id) => {
+    const clip = props.clips.find((x) => x.id === id);
+    return sum + (clip?.duration ?? 0);
+  }, 0);
+
   return (
     <section
       className={`panel ${props.focused ? "focused" : ""}`}
@@ -25,7 +30,12 @@ export function VideoPanel(props: {
       onMouseDown={props.onFocus}
     >
       <div className="panel-head">
-        <h2>Video</h2>
+        <h2>
+          Video{" "}
+          <span className="panel-duration" data-testid="video-duration">
+            {dur(totalSec)}
+          </span>
+        </h2>
         <button type="button" onClick={props.onClear}>
           Clear
         </button>

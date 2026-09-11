@@ -35,6 +35,12 @@ button.danger { background: #3f1212; border-color: #7f1d1d; }
 .panel.focused { box-shadow: inset 0 0 0 2px var(--focus); }
 .panel-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .panel-head h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; margin-right: auto; color: var(--muted); }
+.panel-head h2 .panel-duration {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 .list { overflow: auto; flex: 1; }
 .group-label { padding: 6px 8px 2px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
 
